@@ -1,0 +1,33 @@
+reward:
+  transaction_cost_bps: 5.0
+  slippage_bps: 3.0
+  turnover_penalty: 0.10
+  downside_penalty: 0.20
+  drawdown_penalty: 0.30
+  reward_clip: 5.0
+
+environment:
+  window_size: 64
+  max_position: 1.0
+  min_trade_delta: 0.01
+  initial_equity: 10000.0
+
+training:
+  algorithm: PPO
+  total_timesteps: 250000
+  seed: 42
+  learning_rate: 0.00003
+  n_steps: 2048
+  batch_size: 256
+  gamma: 0.995
+  gae_lambda: 0.95
+  ent_coef: 0.005
+  clip_range: 0.10
+
+promotion:
+  execution_authority: NONE
+  minimum_closed_forward_episodes: 500
+  minimum_oos_profit_factor: 1.15
+  maximum_oos_drawdown: 0.15
+  require_positive_net_expectancy_after_costs: true
+  require_regime_robustness: true

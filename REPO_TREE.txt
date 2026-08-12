@@ -1,0 +1,104 @@
+.
+├── artifacts
+│   ├── evaluations
+│   │   └── .gitkeep
+│   ├── integrations
+│   │   └── .gitkeep
+│   └── models
+│       └── .gitkeep
+├── config
+│   ├── examples
+│   │   └── vnpy_alpha158.json
+│   ├── integrations.yaml
+│   └── rl.yaml
+├── data
+│   ├── adjusted
+│   │   └── .gitkeep
+│   ├── processed
+│   │   └── .gitkeep
+│   └── raw
+│       └── .gitkeep
+├── logs
+│   └── .gitkeep
+├── scripts
+│   ├── workers
+│   │   ├── _common.py
+│   │   ├── finrl_worker.py
+│   │   ├── moondev_worker.py
+│   │   ├── nautilus_worker.py
+│   │   ├── qlib_worker.py
+│   │   └── vnpy_worker.py
+│   ├── adjust_intraday_splits.py
+│   ├── check_integrations.py
+│   ├── download_market_data.py
+│   ├── evaluate_rl.py
+│   ├── generate_smoke_data.py
+│   ├── run_integration.py
+│   ├── run_shadow_policy.py
+│   ├── train_rl.py
+│   └── validate_rl_data.py
+├── src
+│   └── stocks
+│       ├── contracts
+│       │   ├── __init__.py
+│       │   └── trade_intent.py
+│       ├── data
+│       │   ├── __init__.py
+│       │   └── canonical.py
+│       ├── integrations
+│       │   ├── __init__.py
+│       │   ├── contracts.py
+│       │   ├── registry.py
+│       │   └── runner.py
+│       ├── intelligence_agent
+│       │   ├── nlp
+│       │   │   ├── __init__.py
+│       │   │   └── engine.py
+│       │   ├── providers
+│       │   │   ├── __init__.py
+│       │   │   ├── eodhd.py
+│       │   │   ├── fred.py
+│       │   │   └── openfx.py
+│       │   ├── __init__.py
+│       │   ├── agent.py
+│       │   ├── allocator.py
+│       │   ├── config.py
+│       │   ├── indicators.py
+│       │   ├── models.py
+│       │   ├── scoring.py
+│       │   └── store.py
+│       ├── orchestration
+│       │   ├── __init__.py
+│       │   └── decision_pipeline.py
+│       ├── rl
+│       │   ├── __init__.py
+│       │   ├── config.py
+│       │   ├── environment.py
+│       │   ├── evaluator.py
+│       │   ├── features.py
+│       │   ├── rewards.py
+│       │   ├── shadow_policy.py
+│       │   ├── splits.py
+│       │   └── trainer.py
+│       └── __init__.py
+├── tests
+│   ├── test_canonical_data.py
+│   ├── test_integration_contracts.py
+│   ├── test_integration_registry.py
+│   ├── test_integration_runner.py
+│   ├── test_intelligence_smoke.py
+│   ├── test_rl_features.py
+│   ├── test_rl_rewards.py
+│   ├── test_splits.py
+│   └── test_trade_intent.py
+├── .env.example
+├── .gitignore
+├── CHANGELOG.md
+├── pyproject.toml
+├── README.md
+├── REPO_TREE.txt
+├── setup_extra_agents_vnpy_macos.sh
+├── setup_quant_stack_macos.sh
+├── UPGRADE_v0.4.0.md
+├── verify_extra_agents_vnpy.py
+└── verify_quant_stack.py
