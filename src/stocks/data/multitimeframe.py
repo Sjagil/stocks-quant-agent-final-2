@@ -158,6 +158,11 @@ def _candidate_paths(
 
     if timeframe == "15m":
         return (
+            root
+            / "data"
+            / "canonical"
+            / "provider_fabric"
+            / f"{symbol}_15m.parquet",
             root / "data" / "derived" / f"{symbol}_15m.parquet",
             root / "data" / "processed" / f"{symbol}_15m.parquet",
             root / "data" / "adjusted" / f"{symbol}_15m.parquet",
