@@ -1,0 +1,15 @@
+{
+  "schema": "rss_feeds_v1",
+  "feeds": [
+    {
+      "name": "SEC",
+      "url": "https://www.sec.gov/news/pressreleases.rss",
+      "enabled": true
+    },
+    {
+      "name": "Federal Reserve",
+      "url": "https://www.federalreserve.gov/feeds/press_all.xml",
+      "enabled": true
+    }
+  ]
+}
