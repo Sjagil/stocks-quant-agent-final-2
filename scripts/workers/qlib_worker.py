@@ -387,7 +387,7 @@ def _fit_predict_lgbm(
     if "label" not in frame:
         raise ValueError(
             "Qlib fitting requires "
-            "Alpha158 include_label=true"
+            "a label column"
         )
 
     excluded = {
@@ -447,7 +447,31 @@ def _fit_predict_lgbm(
             ],
             np.nan,
         )
-        .dropna()
+    )
+
+    preserve_feature_missingness = bool(
+        payload.get(
+            "preserve_feature_missingness",
+            False,
+        )
+    )
+
+    if preserve_feature_missingness:
+        frame = frame.dropna(
+            subset=[
+                "label",
+            ]
+        )
+    else:
+        frame = frame.dropna()
+
+    feature_missing_fraction = float(
+        frame[
+            feature_columns
+        ]
+        .isna()
+        .mean()
+        .mean()
     )
 
     if len(
@@ -827,6 +851,15 @@ def _fit_predict_lgbm(
         ),
         "test_rows": len(
             aligned
+        ),
+        "preserve_feature_missingness": (
+            preserve_feature_missingness
+        ),
+        "feature_missing_fraction": (
+            feature_missing_fraction
+        ),
+        "dataset_rows": len(
+            frame
         ),
         "pearson_ic": (
             _finite_or_none(
