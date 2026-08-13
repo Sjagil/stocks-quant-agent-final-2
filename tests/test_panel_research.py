@@ -246,17 +246,27 @@ def test_cross_sectional_rank_is_same_time_only():
         .tolist()
     )
 
-    assert first_values == [
-        -1.0 / 6.0,
-        1.0 / 6.0,
-        0.5,
-    ]
+    np.testing.assert_allclose(
+        first_values,
+        [
+            -1.0 / 6.0,
+            1.0 / 6.0,
+            0.5,
+        ],
+        rtol=0.0,
+        atol=1e-15,
+    )
 
-    assert second_values == [
-        0.5,
-        1.0 / 6.0,
-        -1.0 / 6.0,
-    ]
+    np.testing.assert_allclose(
+        second_values,
+        [
+            0.5,
+            1.0 / 6.0,
+            -1.0 / 6.0,
+        ],
+        rtol=0.0,
+        atol=1e-15,
+    )
 
     assert result[
         "flag_available"
