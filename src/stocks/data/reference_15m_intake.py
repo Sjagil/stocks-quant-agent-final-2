@@ -362,6 +362,8 @@ def closed_rth_15m(
 def overlap_audit(
     left: pd.DataFrame,
     right: pd.DataFrame,
+    *,
+    bad_row_threshold_bps: float = 100.0,
 ) -> dict[str, Any]:
     common = (
         left.index
@@ -370,13 +372,21 @@ def overlap_audit(
         )
     )
 
+    empty = {
+        "overlap_rows": 0,
+        "median_close_difference_bps": None,
+        "p95_close_difference_bps": None,
+        "p99_close_difference_bps": None,
+        "max_close_difference_bps": None,
+        "bad_row_threshold_bps": float(
+            bad_row_threshold_bps
+        ),
+        "bad_rows": 0,
+        "bad_fraction": 0.0,
+    }
+
     if len(common) == 0:
-        return {
-            "overlap_rows": 0,
-            "median_close_difference_bps": None,
-            "p95_close_difference_bps": None,
-            "max_close_difference_bps": None,
-        }
+        return empty
 
     left_close = (
         left.loc[
@@ -422,12 +432,14 @@ def overlap_audit(
     ).dropna()
 
     if difference.empty:
-        return {
-            "overlap_rows": 0,
-            "median_close_difference_bps": None,
-            "p95_close_difference_bps": None,
-            "max_close_difference_bps": None,
-        }
+        return empty
+
+    bad = (
+        difference
+        > float(
+            bad_row_threshold_bps
+        )
+    )
 
     return {
         "overlap_rows": int(
@@ -441,10 +453,91 @@ def overlap_audit(
                 0.95
             )
         ),
+        "p99_close_difference_bps": float(
+            difference.quantile(
+                0.99
+            )
+        ),
         "max_close_difference_bps": float(
             difference.max()
         ),
+        "bad_row_threshold_bps": float(
+            bad_row_threshold_bps
+        ),
+        "bad_rows": int(
+            bad.sum()
+        ),
+        "bad_fraction": float(
+            bad.mean()
+        ),
     }
+
+
+def overlap_is_compatible(
+    audit: dict[str, Any],
+    *,
+    min_overlap_rows: int = 5,
+    max_median_bps: float = 50.0,
+    max_p95_bps: float | None = None,
+    max_bad_fraction: float | None = None,
+) -> bool:
+    if (
+        int(
+            audit.get(
+                "overlap_rows",
+                0,
+            )
+        )
+        < int(
+            min_overlap_rows
+        )
+    ):
+        return False
+
+    median = audit.get(
+        "median_close_difference_bps"
+    )
+
+    if (
+        median is None
+        or float(median)
+        > float(
+            max_median_bps
+        )
+    ):
+        return False
+
+    if max_p95_bps is not None:
+        p95 = audit.get(
+            "p95_close_difference_bps"
+        )
+
+        if (
+            p95 is None
+            or float(p95)
+            > float(
+                max_p95_bps
+            )
+        ):
+            return False
+
+    if max_bad_fraction is not None:
+        fraction = float(
+            audit.get(
+                "bad_fraction",
+                1.0,
+            )
+        )
+
+        if (
+            fraction
+            > float(
+                max_bad_fraction
+            )
+        ):
+            return False
+
+    return True
 
 
 def require_compatible_overlap(
@@ -452,32 +545,50 @@ def require_compatible_overlap(
     right: pd.DataFrame,
     *,
     max_median_bps: float,
+    max_p95_bps: float | None = None,
+    max_bad_fraction: float | None = None,
+    bad_row_threshold_bps: float = 100.0,
+    min_overlap_rows: int = 5,
 ) -> dict[str, Any]:
     audit = overlap_audit(
         left,
         right,
+        bad_row_threshold_bps=(
+            bad_row_threshold_bps
+        ),
     )
 
-    median = audit[
-        "median_close_difference_bps"
-    ]
+    compatible = overlap_is_compatible(
+        audit,
+        min_overlap_rows=(
+            min_overlap_rows
+        ),
+        max_median_bps=(
+            max_median_bps
+        ),
+        max_p95_bps=(
+            max_p95_bps
+        ),
+        max_bad_fraction=(
+            max_bad_fraction
+        ),
+    )
 
-    if (
-        audit[
-            "overlap_rows"
-        ]
-        >= 5
-        and median is not None
-        and median
-        > max_median_bps
-    ):
-        raise ValueError(
-            "material provider divergence: "
-            f"median={median:.4f}bps "
-            f"limit={max_median_bps:.4f}bps"
-        )
+    if compatible:
+        return audit
 
-    return audit
+    raise ValueError(
+        "material provider divergence: "
+        f"rows={audit['overlap_rows']} "
+        f"median="
+        f"{audit['median_close_difference_bps']}bps "
+        f"p95="
+        f"{audit['p95_close_difference_bps']}bps "
+        f"p99="
+        f"{audit['p99_close_difference_bps']}bps "
+        f"bad_fraction="
+        f"{audit['bad_fraction']:.4%}"
+    )
 
 
 def existing_base(

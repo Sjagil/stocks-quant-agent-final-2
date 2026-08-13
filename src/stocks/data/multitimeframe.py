@@ -166,6 +166,11 @@ def _candidate_paths(
             root
             / "data"
             / "canonical"
+            / "split_adjusted"
+            / f"{symbol}_15m.parquet",
+            root
+            / "data"
+            / "canonical"
             / "provider_fabric"
             / f"{symbol}_15m.parquet",
             root / "data" / "derived" / f"{symbol}_15m.parquet",

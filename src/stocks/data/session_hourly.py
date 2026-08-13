@@ -309,6 +309,9 @@ def synchronize_hourly(
     as_of: str | pd.Timestamp | None,
     min_coverage: float = 0.95,
     max_overlap_median_bps: float = 50.0,
+    max_overlap_p95_bps: float = 100.0,
+    max_overlap_bad_fraction: float = 0.01,
+    bad_row_threshold_bps: float = 100.0,
 ) -> dict[str, Any]:
     root = (
         Path(project_root)
@@ -317,17 +320,33 @@ def synchronize_hourly(
 
     symbol = symbol.upper()
 
-    source_15m = (
+    source_candidates = (
+        root
+        / "data"
+        / "canonical"
+        / "split_adjusted"
+        / f"{symbol}_15m.parquet",
         root
         / "data"
         / "canonical"
         / "provider_fabric"
-        / f"{symbol}_15m.parquet"
+        / f"{symbol}_15m.parquet",
     )
 
-    if not source_15m.is_file():
+    source_15m = next(
+        (
+            candidate
+            for candidate
+            in source_candidates
+            if candidate.is_file()
+        ),
+        None,
+    )
+
+    if source_15m is None:
         raise FileNotFoundError(
-            source_15m
+            f"{symbol}: canonical "
+            "15m source missing"
         )
 
     fifteen, _ = (
@@ -372,6 +391,15 @@ def synchronize_hourly(
             derived,
             max_median_bps=(
                 max_overlap_median_bps
+            ),
+            max_p95_bps=(
+                max_overlap_p95_bps
+            ),
+            max_bad_fraction=(
+                max_overlap_bad_fraction
+            ),
+            bad_row_threshold_bps=(
+                bad_row_threshold_bps
             ),
         )
     )
