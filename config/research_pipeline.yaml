@@ -1,0 +1,55 @@
+schema_version: 1
+
+stages:
+  hypothesis:
+    purpose: Generate and formalize economically meaningful hypotheses.
+    engines:
+      - moondev
+
+  rapid_discovery:
+    purpose: Rapidly reject weak technical and systematic ideas.
+    engines:
+      - vectorbt
+
+  parameter_search:
+    purpose: Optimize only on train and validation partitions.
+    engines:
+      - optuna
+
+  factor_research:
+    purpose: Generate alternative feature and factor representations.
+    engines:
+      - vnpy
+      - qlib
+
+  independent_walk_forward:
+    purpose: Test temporal stability independently from the discovery engine.
+    engines:
+      - pybroker
+
+  reinforcement_learning:
+    purpose: Challenge sizing, allocation and position-management policies.
+    engines:
+      - sb3_contrib
+      - finrl
+
+  portfolio_construction:
+    purpose: Measure portfolio contribution rather than isolated strategy quality.
+    engines:
+      - skfolio
+
+  event_driven_validation:
+    purpose: Validate finalists using independent event-driven engines.
+    engines:
+      - nautilus
+      - lean
+
+  production_architecture_review:
+    purpose: Reuse proven production capabilities without importing its stocks namespace.
+    engines:
+      - stocks_reference
+
+  broker_architecture_crosscheck:
+    purpose: Cross-check IBKR contracts and gateway patterns.
+    engines:
+      - vnpy_ib

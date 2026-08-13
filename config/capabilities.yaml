@@ -1,0 +1,145 @@
+schema_version: 1
+
+capabilities:
+  vectorbt:
+    mode: direct_python
+    module: vectorbt
+    distribution: vectorbt
+    repo: references/vectorbt
+    roles:
+      - fast_strategy_discovery
+      - vectorized_backtest
+      - parameter_sweep
+      - signal_research
+    description: Fast vectorized discovery and screening engine.
+
+  optuna:
+    mode: direct_python
+    module: optuna
+    distribution: optuna
+    repo: references/optuna
+    roles:
+      - hyperparameter_optimization
+      - pruning
+      - walk_forward_parameter_search
+    description: Train-validation-only optimization engine.
+
+  pybroker:
+    mode: direct_python
+    module: pybroker
+    distribution: lib-pybroker
+    repo: references/pybroker
+    roles:
+      - walk_forward_validation
+      - bootstrap_validation
+      - strategy_crosscheck
+    description: Independent strategy and walk-forward validator.
+
+  skfolio:
+    mode: direct_python
+    module: skfolio
+    distribution: skfolio
+    repo: references/skfolio
+    roles:
+      - portfolio_optimization
+      - allocation
+      - risk_budgeting
+      - diversification
+    description: Portfolio optimization and allocation challenger.
+
+  sb3_contrib:
+    mode: direct_python
+    module: sb3_contrib
+    distribution: sb3-contrib
+    repo: references/stable-baselines3-contrib
+    roles:
+      - reinforcement_learning
+      - maskable_ppo
+      - position_management_challenger
+    description: Direct RL toolkit used by the canonical RL layer.
+
+  qlib:
+    mode: integration_worker
+    integration: qlib
+    repo: references/qlib
+    roles:
+      - machine_learning
+      - factor_models
+      - model_challengers
+      - rolling_training
+    description: ML and factor-model research engine.
+
+  vnpy:
+    mode: integration_worker
+    integration: vnpy
+    repo: references/vnpy
+    roles:
+      - alpha158
+      - factor_generation
+      - classical_ml
+      - feature_research
+    description: VeighNa Alpha and factor research engine.
+
+  finrl:
+    mode: integration_worker
+    integration: finrl
+    repo: references/FinRL-Trading
+    roles:
+      - portfolio_rl
+      - allocation_rl
+      - rotation_challenger
+    description: Multi-asset RL allocation challenger.
+
+  moondev:
+    mode: integration_worker
+    integration: moondev
+    repo: references/MoonDev-Trading-Ai-Agents
+    roles:
+      - hypothesis_generation
+      - strategy_critic
+      - research_agent
+      - risk_critic
+    description: Agentic hypothesis and strategy critique engine.
+
+  nautilus:
+    mode: integration_worker
+    integration: nautilus
+    repo: references/nautilus_trader
+    roles:
+      - event_driven_validation
+      - execution_simulation
+      - finalist_validation
+    description: Independent event-driven finalist validator.
+
+  lean:
+    mode: cli
+    executable: .venvs/lean/bin/lean
+    repo: references/Lean
+    roles:
+      - independent_backtest
+      - finalist_validation
+      - cross_engine_validation
+    description: Independent LEAN validation engine.
+
+  stocks_reference:
+    mode: subprocess_reference
+    python: .venvs/stocks/bin/python
+    repo: references/Stocks
+    roles:
+      - production_donor
+      - data_donor
+      - research_donor
+      - portfolio_donor
+      - risk_donor
+      - execution_validator
+      - ibkr_donor
+    description: Mature Stocks platform used through selective porting and subprocess validation.
+
+  vnpy_ib:
+    mode: donor
+    repo: references/vnpy_ib
+    roles:
+      - ibkr_adapter_reference
+      - gateway_reference
+      - broker_contract_crosscheck
+    description: IBKR adapter patterns only; never canonical execution authority.
