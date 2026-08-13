@@ -15,15 +15,29 @@ class ProviderHTTPError(RuntimeError):
     pass
 
 
+_RETRY = retry(
+    retry=retry_if_exception_type(
+        (
+            httpx.TimeoutException,
+            httpx.NetworkError,
+            ProviderHTTPError,
+        )
+    ),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential_jitter(
+        initial=0.5,
+        max=8.0,
+    ),
+    reraise=True,
+)
+
+
 class ProviderHTTPClient:
     def __init__(
         self,
         *,
         timeout: float = 20.0,
-        user_agent: str = (
-            "stocks-quant-agent/1.0 "
-            "research-contact"
-        ),
+        user_agent: str = "stocks-quant-agent/1.0 research",
     ) -> None:
         self.client = httpx.Client(
             timeout=timeout,
@@ -48,21 +62,19 @@ class ProviderHTTPClient:
     ) -> None:
         self.close()
 
-    @retry(
-        retry=retry_if_exception_type(
-            (
-                httpx.TimeoutException,
-                httpx.NetworkError,
-                ProviderHTTPError,
+    @staticmethod
+    def _validate(response: httpx.Response) -> None:
+        if response.status_code == 429:
+            raise ProviderHTTPError("rate limited")
+
+        if response.status_code >= 500:
+            raise ProviderHTTPError(
+                f"provider server error {response.status_code}"
             )
-        ),
-        stop=stop_after_attempt(3),
-        wait=wait_exponential_jitter(
-            initial=0.5,
-            max=8.0,
-        ),
-        reraise=True,
-    )
+
+        response.raise_for_status()
+
+    @_RETRY
     def get_json(
         self,
         url: str,
@@ -76,17 +88,26 @@ class ProviderHTTPClient:
             headers=headers,
         )
 
-        if response.status_code == 429:
-            raise ProviderHTTPError(
-                "rate limited"
-            )
+        self._validate(response)
 
-        if response.status_code >= 500:
-            raise ProviderHTTPError(
-                f"provider server error "
-                f"{response.status_code}"
-            )
+        return response.json()
 
-        response.raise_for_status()
+    @_RETRY
+    def post_json(
+        self,
+        url: str,
+        *,
+        payload: Any,
+        params: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> Any:
+        response = self.client.post(
+            url,
+            params=params,
+            json=payload,
+            headers=headers,
+        )
+
+        self._validate(response)
 
         return response.json()

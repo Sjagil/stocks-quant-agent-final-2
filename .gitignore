@@ -31,3 +31,5 @@ artifacts/
 !.env.example
 /output/
 /artifacts/
+/build/
+.mypy_cache/
