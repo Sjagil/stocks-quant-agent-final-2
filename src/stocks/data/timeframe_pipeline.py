@@ -134,6 +134,12 @@ def rolling_intraday_context(
 
     pieces = []
 
+    expected_spacing = (
+        pd.Timedelta(
+            minutes=15
+        )
+    )
+
     for _, session in work.groupby(
         "_session",
         sort=True,
@@ -144,68 +150,97 @@ def rolling_intraday_context(
             ]
         )
 
-        if len(
-            session
-        ) < window_bars:
+        if len(session) < window_bars:
             continue
 
-        result = pd.DataFrame(
-            index=session.index
+        spacing = (
+            session.index
+            .to_series()
+            .diff()
         )
 
-        result["open"] = (
-            session["open"]
-            .shift(
-                window_bars
-                - 1
+        contiguous = spacing.eq(
+            expected_spacing
+        )
+
+        run_id = (
+            (~contiguous)
+            .cumsum()
+        )
+
+        session[
+            "_contiguous_run"
+        ] = run_id.values
+
+        for _, run in session.groupby(
+            "_contiguous_run",
+            sort=True,
+        ):
+            run = run.drop(
+                columns=[
+                    "_contiguous_run",
+                ]
             )
-        )
 
-        result["high"] = (
-            session["high"]
-            .rolling(
-                window=window_bars,
-                min_periods=window_bars,
+            if len(run) < window_bars:
+                continue
+
+            result = pd.DataFrame(
+                index=run.index
             )
-            .max()
-        )
 
-        result["low"] = (
-            session["low"]
-            .rolling(
-                window=window_bars,
-                min_periods=window_bars,
+            result["open"] = (
+                run["open"]
+                .shift(
+                    window_bars - 1
+                )
             )
-            .min()
-        )
 
-        result["close"] = (
-            session["close"]
-        )
-
-        result["volume"] = (
-            session["volume"]
-            .rolling(
-                window=window_bars,
-                min_periods=window_bars,
+            result["high"] = (
+                run["high"]
+                .rolling(
+                    window=window_bars,
+                    min_periods=window_bars,
+                )
+                .max()
             )
-            .sum()
-        )
 
-        result = result.dropna(
-            subset=[
-                "open",
-                "high",
-                "low",
-                "close",
-                "volume",
-            ]
-        )
-
-        if not result.empty:
-            pieces.append(
-                result
+            result["low"] = (
+                run["low"]
+                .rolling(
+                    window=window_bars,
+                    min_periods=window_bars,
+                )
+                .min()
             )
+
+            result["close"] = (
+                run["close"]
+            )
+
+            result["volume"] = (
+                run["volume"]
+                .rolling(
+                    window=window_bars,
+                    min_periods=window_bars,
+                )
+                .sum()
+            )
+
+            result = result.dropna(
+                subset=[
+                    "open",
+                    "high",
+                    "low",
+                    "close",
+                    "volume",
+                ]
+            )
+
+            if not result.empty:
+                pieces.append(
+                    result
+                )
 
     if not pieces:
         return canonicalize_ohlcv(
