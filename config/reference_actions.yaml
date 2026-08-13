@@ -1,5 +1,4 @@
 schema_version: 1
-
 engines:
   moondev:
     mode: integration_worker
@@ -12,7 +11,6 @@ engines:
         stage: hypothesis
         artifact_kind: critique
         status: planned
-
   vectorbt:
     mode: direct_python
     actions:
@@ -20,7 +18,6 @@ engines:
         stage: rapid_discovery
         artifact_kind: strategy_screen
         status: implemented
-
   optuna:
     mode: direct_python
     actions:
@@ -28,7 +25,6 @@ engines:
         stage: parameter_search
         artifact_kind: optimization
         status: implemented
-
   vnpy:
     mode: integration_worker
     actions:
@@ -40,19 +36,17 @@ engines:
         stage: factor_research
         artifact_kind: prediction
         status: planned
-
   qlib:
     mode: integration_worker
     actions:
       fit_predict_lgbm:
         stage: predictive_modeling
         artifact_kind: prediction
-        status: planned
+        status: implemented
       rolling_predict:
         stage: predictive_modeling
         artifact_kind: prediction
         status: planned
-
   pybroker:
     mode: direct_python
     actions:
@@ -60,7 +54,6 @@ engines:
         stage: independent_walk_forward
         artifact_kind: validation
         status: planned
-
   sb3_contrib:
     mode: direct_python
     actions:
@@ -68,7 +61,6 @@ engines:
         stage: reinforcement_learning
         artifact_kind: rl_policy
         status: planned
-
   finrl:
     mode: integration_worker
     actions:
@@ -80,7 +72,6 @@ engines:
         stage: portfolio_rl
         artifact_kind: target_weights
         status: planned
-
   skfolio:
     mode: direct_python
     actions:
@@ -92,7 +83,6 @@ engines:
         stage: portfolio_construction
         artifact_kind: validation
         status: planned
-
   nautilus:
     mode: integration_worker
     actions:
@@ -100,7 +90,6 @@ engines:
         stage: event_driven_validation
         artifact_kind: validation
         status: planned
-
   lean:
     mode: cli
     actions:
@@ -108,14 +97,13 @@ engines:
         stage: event_driven_validation
         artifact_kind: validation
         status: planned
-
   stocks_reference:
     mode: subprocess_reference
     actions:
       news_link:
         stage: evidence_enrichment
         artifact_kind: news_evidence
-        status: planned
+        status: implemented
       screener_candidates:
         stage: candidate_generation
         artifact_kind: candidates
@@ -128,7 +116,6 @@ engines:
         stage: evidence_enrichment
         artifact_kind: microstructure
         status: planned
-
   vnpy_ib:
     mode: donor
     actions:

@@ -52,12 +52,24 @@ integrations:
     repo: references/qlib
     distributions: [pyqlib]
     imports: [qlib]
-    capabilities: [health, catalog]
-    timeout_seconds: 300
+    capabilities: [health, catalog, fit_predict_lgbm]
+    timeout_seconds: 900
     upgrade:
       strategy: isolated_candidate
       package: pyqlib
       repository: https://github.com/microsoft/qlib.git
+
+
+  stocks_reference:
+    enabled: true
+    kind: isolated_python
+    python: "${STOCKS_REFERENCE_PYTHON:-.venvs/stocks/bin/python}"
+    worker: scripts/workers/stocks_reference_worker.py
+    repo: references/Stocks
+    distributions: []
+    imports: []
+    capabilities: [health, catalog, news_link]
+    timeout_seconds: 300
 
   finrl:
     enabled: true
