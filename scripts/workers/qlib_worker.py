@@ -715,9 +715,14 @@ def _fit_predict_lgbm(
                 3,
             )
         ),
-        "label_semantics": (
-            "VeighNa Alpha158 upstream "
-            "forward label"
+        "label_semantics": str(
+            payload.get(
+                "label_semantics"
+            )
+            or (
+                "VeighNa Alpha158 upstream "
+                "forward label"
+            )
         ),
         "execution_authority": (
             "NONE"

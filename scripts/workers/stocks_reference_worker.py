@@ -244,10 +244,22 @@ def _news_link(
         if not title:
             continue
 
-        direct_symbols = {
+        summary = " ".join(
+            str(
+                raw.get(
+                    "summary"
+                )
+                or ""
+            ).split()
+        )
+
+        provider_symbols = {
             symbol
             for value in (
                 raw.get(
+                    "provider_symbols"
+                )
+                or raw.get(
                     "symbols"
                 )
                 or []
@@ -262,14 +274,36 @@ def _news_link(
             in universe
         }
 
-        linked = (
-            direct_symbols
-            |
+        combined_text = (
+            title
+            + " "
+            + summary
+        ).strip()
+
+        text_linked_symbols = (
             intelligence._link_symbols(
-                title,
+                combined_text,
                 universe=universe,
                 alias_index=alias_index,
             )
+        )
+
+        validated_provider_symbols = (
+            provider_symbols
+            & text_linked_symbols
+        )
+
+        provider_only_symbols = (
+            provider_symbols
+            - text_linked_symbols
+        )
+
+        direct_symbols = (
+            text_linked_symbols
+        )
+
+        linked = (
+            text_linked_symbols
         )
 
         symbols = tuple(
@@ -425,6 +459,21 @@ def _news_link(
                 "direct_symbols": sorted(
                     direct_symbols
                 ),
+                "provider_symbols": sorted(
+                    provider_symbols
+                ),
+                "validated_provider_symbols": sorted(
+                    validated_provider_symbols
+                ),
+                "provider_only_symbols": sorted(
+                    provider_only_symbols
+                ),
+                "query_symbol": str(
+                    raw.get(
+                        "query_symbol"
+                    )
+                    or ""
+                ).upper(),
                 "linked_symbols": list(
                     symbols
                 ),

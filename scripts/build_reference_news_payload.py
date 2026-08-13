@@ -4,9 +4,7 @@ import json
 from pathlib import Path
 
 
-ROOT = Path(
-    __file__
-).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def latest_refresh() -> Path:
@@ -16,9 +14,7 @@ def latest_refresh() -> Path:
             / "artifacts"
             / "source_fabric"
             / "refresh"
-        ).glob(
-            "refresh-*.json"
-        )
+        ).glob("refresh-*.json")
     )
 
     if not paths:
@@ -26,222 +22,179 @@ def latest_refresh() -> Path:
             "no source refresh artifacts"
         )
 
-    return paths[
-        -1
-    ]
+    return paths[-1]
 
 
-source = latest_refresh()
+def main() -> int:
+    source = latest_refresh()
 
-data = json.loads(
-    source.read_text(
-        encoding="utf-8"
+    payload = json.loads(
+        source.read_text(
+            encoding="utf-8"
+        )
     )
-)
 
-universe = {}
-items = []
+    universe = {}
+    articles = []
 
-for symbol, block in (
-    data[
-        "symbols"
-    ].items()
-):
-    metadata = {
-        "name": "",
-        "sector": "",
-        "industry": "",
-        "underlying_commodity": "",
-    }
-
-    for result in (
-        block[
-            "results"
-        ]
+    for symbol, block in (
+        payload.get("symbols", {}).items()
     ):
-        if (
-            result[
-                "provider"
-            ]
-            == "yfinance"
-            and result[
-                "domain"
-            ]
-            == "fundamentals"
-            and result[
-                "state"
-            ]
-            == "OK"
-            and result[
-                "items"
-            ]
-        ):
-            info = result[
-                "items"
-            ][
-                0
-            ]
+        symbol = str(
+            symbol
+        ).upper()
 
-            metadata[
-                "name"
-            ] = str(
-                info.get(
-                    "longName"
-                )
-                or info.get(
-                    "shortName"
-                )
-                or ""
+        metadata = {
+            "name": "",
+            "sector": "",
+            "industry": "",
+            "underlying_commodity": "",
+        }
+
+        for result in block.get(
+            "results",
+            [],
+        ):
+            provider = str(
+                result.get("provider") or ""
             )
 
-            metadata[
-                "sector"
-            ] = str(
-                info.get(
-                    "sector"
-                )
-                or ""
+            domain = str(
+                result.get("domain") or ""
             )
 
-            metadata[
-                "industry"
-            ] = str(
-                info.get(
-                    "industry"
-                )
-                or ""
+            state = str(
+                result.get("state") or ""
             )
 
-        if (
-            result[
-                "domain"
-            ]
-            != "news"
-            or result[
-                "state"
-            ]
-            != "OK"
-        ):
-            continue
-
-        for raw in (
-            result[
+            items = result.get(
                 "items"
-            ]
-        ):
-            title = str(
-                raw.get(
-                    "title"
-                )
-                or ""
-            ).strip()
+            ) or []
 
-            if not title:
+            if (
+                provider == "yfinance"
+                and domain == "fundamentals"
+                and state == "OK"
+                and items
+            ):
+                info = dict(
+                    items[0]
+                )
+
+                metadata["name"] = str(
+                    info.get("longName")
+                    or info.get("shortName")
+                    or ""
+                )
+
+                metadata["sector"] = str(
+                    info.get("sector")
+                    or ""
+                )
+
+                metadata["industry"] = str(
+                    info.get("industry")
+                    or ""
+                )
+
+            if (
+                domain != "news"
+                or state != "OK"
+            ):
                 continue
 
-            items.append(
-                {
-                    "provider": (
-                        result[
-                            "provider"
-                        ]
-                    ),
-                    "provider_id": (
-                        raw.get(
-                            "provider_id"
-                        )
-                        or raw.get(
-                            "article_id"
-                        )
-                        or raw.get(
-                            "id"
-                        )
-                    ),
-                    "published_at": (
-                        raw.get(
-                            "published_at"
-                        )
-                        or raw.get(
-                            "published"
-                        )
-                        or raw.get(
-                            "datetime"
-                        )
-                    ),
-                    "title": title,
-                    "source": (
-                        raw.get(
-                            "source_name"
-                        )
-                        or raw.get(
-                            "source"
-                        )
-                        or result[
-                            "provider"
-                        ]
-                    ),
-                    "symbols": (
-                        raw.get(
-                            "symbols"
-                        )
-                        or [
-                            symbol
-                        ]
-                    ),
-                    "sentiment_polarity": (
-                        raw.get(
-                            "provider_sentiment"
-                        )
-                    ),
-                }
-            )
+            for raw in items:
+                if not isinstance(
+                    raw,
+                    dict,
+                ):
+                    continue
 
-    universe[
-        symbol
-    ] = metadata
+                title = " ".join(
+                    str(
+                        raw.get("title")
+                        or ""
+                    ).split()
+                )
 
-payload = {
-    "universe": universe,
-    "items": items,
-}
+                if not title:
+                    continue
 
-output = (
-    ROOT
-    / "artifacts"
-    / "source_fabric"
-    / "stocks-reference-news-payload.json"
-)
+                summary = " ".join(
+                    str(
+                        raw.get("summary")
+                        or raw.get("description")
+                        or ""
+                    ).split()
+                )
 
-output.write_text(
-    json.dumps(
-        payload,
-        indent=2,
-        default=str,
+                articles.append(
+                    {
+                        "provider": provider,
+                        "provider_id": (
+                            raw.get("provider_id")
+                            or raw.get("article_id")
+                            or raw.get("id")
+                        ),
+                        "published_at": (
+                            raw.get("published_at")
+                            or raw.get("published")
+                            or raw.get("datetime")
+                        ),
+                        "title": title,
+                        "summary": summary,
+                        "source": (
+                            raw.get("source_name")
+                            or raw.get("source")
+                            or provider
+                        ),
+                        "provider_symbols": (
+                            raw.get("symbols")
+                            or []
+                        ),
+                        "query_symbol": symbol,
+                        "sentiment_polarity": (
+                            raw.get(
+                                "provider_sentiment"
+                            )
+                        ),
+                    }
+                )
+
+        universe[symbol] = metadata
+
+    output = (
+        ROOT
+        / "artifacts"
+        / "source_fabric"
+        / "stocks-reference-news-payload.json"
     )
-    + "\n",
-    encoding="utf-8",
-)
 
-print(
-    "SOURCE",
-    source,
-)
+    output.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
-print(
-    "SYMBOLS",
-    len(
-        universe
-    ),
-)
+    output.write_text(
+        json.dumps(
+            {
+                "universe": universe,
+                "items": articles,
+            },
+            indent=2,
+            default=str,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
-print(
-    "ARTICLES",
-    len(
-        items
-    ),
-)
+    print("SOURCE", source)
+    print("SYMBOLS", len(universe))
+    print("ARTICLES", len(articles))
+    print("OUTPUT", output)
 
-print(
-    "OUTPUT",
-    output,
-)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
