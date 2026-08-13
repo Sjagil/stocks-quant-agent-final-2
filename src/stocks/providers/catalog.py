@@ -83,7 +83,12 @@ SOURCES: tuple[SourceSpec, ...] = (
             SourceDomain.SYMBOL_MAPPING,
         ),
         env_any=("EODHD_API_KEY",),
-        notes="Primary broad historical/research provider.",
+        authoritative=True,
+        notes=(
+            "PRIMARY paid historical/research provider: "
+            "EOD, intraday, fundamentals, news, corporate "
+            "actions and broad world-market coverage."
+        ),
     ),
     SourceSpec(
         "yfinance",
@@ -181,6 +186,11 @@ SOURCES: tuple[SourceSpec, ...] = (
         env_any=(
             "OPENEXCHANGERATES_APP_ID",
             "OPENEXCHANGE_API_KEY",
+        ),
+        authoritative=True,
+        notes=(
+            "PRIMARY paid FX conversion and historical "
+            "FX-rate provider."
         ),
     ),
     SourceSpec(

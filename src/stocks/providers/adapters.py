@@ -1739,7 +1739,8 @@ def eodhd_news(
                     row.published_at.isoformat()
                 ),
                 "title": row.title,
-                "summary": row.summary,
+                "summary": row.body,
+                "url": row.url,
                 "source": row.source,
                 "symbols": list(
                     row.symbols

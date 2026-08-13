@@ -15,12 +15,28 @@ class ProviderHTTPError(RuntimeError):
     pass
 
 
+class ProviderTransientError(ProviderHTTPError):
+    pass
+
+
+class ProviderAuthenticationError(ProviderHTTPError):
+    pass
+
+
+class ProviderEntitlementError(ProviderHTTPError):
+    pass
+
+
+class ProviderRequestError(ProviderHTTPError):
+    pass
+
+
 _RETRY = retry(
     retry=retry_if_exception_type(
         (
             httpx.TimeoutException,
             httpx.NetworkError,
-            ProviderHTTPError,
+            ProviderTransientError,
         )
     ),
     stop=stop_after_attempt(3),
@@ -63,16 +79,54 @@ class ProviderHTTPClient:
         self.close()
 
     @staticmethod
-    def _validate(response: httpx.Response) -> None:
-        if response.status_code == 429:
-            raise ProviderHTTPError("rate limited")
+    def _safe_endpoint(
+        response: httpx.Response,
+    ) -> str:
+        return (
+            f"{response.request.url.scheme}://"
+            f"{response.request.url.host}"
+            f"{response.request.url.path}"
+        )
 
-        if response.status_code >= 500:
-            raise ProviderHTTPError(
-                f"provider server error {response.status_code}"
+    @classmethod
+    def _validate(
+        cls,
+        response: httpx.Response,
+    ) -> None:
+        status = response.status_code
+        endpoint = cls._safe_endpoint(
+            response
+        )
+
+        if status < 400:
+            return
+
+        if status == 401:
+            raise ProviderAuthenticationError(
+                f"HTTP 401 authentication failure: {endpoint}"
             )
 
-        response.raise_for_status()
+        if status in {
+            402,
+            403,
+        }:
+            raise ProviderEntitlementError(
+                f"HTTP {status} entitlement unavailable: {endpoint}"
+            )
+
+        if status == 429:
+            raise ProviderTransientError(
+                f"HTTP 429 rate limited: {endpoint}"
+            )
+
+        if status >= 500:
+            raise ProviderTransientError(
+                f"HTTP {status} provider server error: {endpoint}"
+            )
+
+        raise ProviderRequestError(
+            f"HTTP {status} provider request rejected: {endpoint}"
+        )
 
     @_RETRY
     def get_json(
@@ -88,7 +142,9 @@ class ProviderHTTPClient:
             headers=headers,
         )
 
-        self._validate(response)
+        self._validate(
+            response
+        )
 
         return response.json()
 
@@ -108,6 +164,8 @@ class ProviderHTTPClient:
             headers=headers,
         )
 
-        self._validate(response)
+        self._validate(
+            response
+        )
 
         return response.json()
