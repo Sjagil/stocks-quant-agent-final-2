@@ -40,6 +40,13 @@ class TrainingConfig:
     ent_coef: float = 0.005
     clip_range: float = 0.10
 
+    sac_buffer_size: int = 25_000
+    sac_learning_starts: int = 1_000
+    sac_train_freq: int = 1
+    sac_gradient_steps: int = 1
+    sac_tau: float = 0.005
+    sac_ent_coef: str | float = "auto"
+
 
 def load_rl_yaml(path: str | Path = "config/rl.yaml") -> tuple[RewardConfig, EnvironmentConfig, TrainingConfig, dict]:
     """Load the repository RL YAML. PyYAML is required only for RL runtime commands."""

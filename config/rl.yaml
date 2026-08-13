@@ -23,6 +23,12 @@ training:
   gae_lambda: 0.95
   ent_coef: 0.005
   clip_range: 0.10
+  sac_buffer_size: 25000
+  sac_learning_starts: 1000
+  sac_train_freq: 1
+  sac_gradient_steps: 1
+  sac_tau: 0.005
+  sac_ent_coef: auto
 
 promotion:
   execution_authority: NONE
