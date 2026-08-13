@@ -297,3 +297,127 @@ def test_context_join_preserves_utc_timezone():
         ==
         "datetime64[ns, UTC]"
     )
+
+
+def test_intraday_context_cannot_carry_overnight():
+    import numpy as np
+    import pandas as pd
+
+    from stocks.research.mtf_features import (
+        apply_context_freshness,
+    )
+
+    frame = pd.DataFrame(
+        {
+            "decision_time": pd.to_datetime(
+                [
+                    "2026-01-06 15:30:00+00:00",
+                ],
+                utc=True,
+            ),
+            "2h_source_bar_time": pd.to_datetime(
+                [
+                    "2026-01-05 20:45:00+00:00",
+                ],
+                utc=True,
+            ),
+            "2h_availability_time": pd.to_datetime(
+                [
+                    "2026-01-05 21:00:00+00:00",
+                ],
+                utc=True,
+            ),
+            "2h_age_minutes": [
+                1110.0,
+            ],
+            "2h_ret1": [
+                0.02,
+            ],
+        }
+    )
+
+    result = apply_context_freshness(
+        frame,
+        timeframe="2h",
+        feature_columns=[
+            "2h_ret1",
+        ],
+    )
+
+    assert (
+        result[
+            "2h_available"
+        ].iloc[0]
+        == 0
+    )
+
+    assert np.isnan(
+        result[
+            "2h_ret1"
+        ].iloc[0]
+    )
+
+    assert pd.isna(
+        result[
+            "2h_source_bar_time"
+        ].iloc[0]
+    )
+
+
+def test_same_session_intraday_context_remains_available():
+    import pandas as pd
+
+    from stocks.research.mtf_features import (
+        apply_context_freshness,
+    )
+
+    frame = pd.DataFrame(
+        {
+            "decision_time": pd.to_datetime(
+                [
+                    "2026-01-06 19:30:00+00:00",
+                ],
+                utc=True,
+            ),
+            "4h_source_bar_time": pd.to_datetime(
+                [
+                    "2026-01-06 19:15:00+00:00",
+                ],
+                utc=True,
+            ),
+            "4h_availability_time": pd.to_datetime(
+                [
+                    "2026-01-06 19:30:00+00:00",
+                ],
+                utc=True,
+            ),
+            "4h_age_minutes": [
+                0.0,
+            ],
+            "4h_ret1": [
+                0.01,
+            ],
+        }
+    )
+
+    result = apply_context_freshness(
+        frame,
+        timeframe="4h",
+        feature_columns=[
+            "4h_ret1",
+        ],
+    )
+
+    assert (
+        result[
+            "4h_available"
+        ].iloc[0]
+        == 1
+    )
+
+    assert (
+        result[
+            "4h_ret1"
+        ].iloc[0]
+        == 0.01
+    )

@@ -471,6 +471,126 @@ def _context_for_join(
     return result
 
 
+
+INTRADAY_SAME_SESSION_TIMEFRAMES = frozenset(
+    {
+        "15m",
+        "2h",
+        "4h",
+    }
+)
+
+
+def _nyse_session_key(
+    series: pd.Series,
+) -> pd.Series:
+    values = pd.to_datetime(
+        series,
+        utc=True,
+        errors="coerce",
+    )
+
+    return (
+        values
+        .dt.tz_convert(
+            "America/New_York"
+        )
+        .dt.strftime(
+            "%Y-%m-%d"
+        )
+    )
+
+
+def apply_context_freshness(
+    frame: pd.DataFrame,
+    *,
+    timeframe: str,
+    feature_columns: list[str],
+) -> pd.DataFrame:
+    result = frame.copy()
+
+    source_column = (
+        f"{timeframe}_source_bar_time"
+    )
+
+    availability_column = (
+        f"{timeframe}_availability_time"
+    )
+
+    age_column = (
+        f"{timeframe}_age_minutes"
+    )
+
+    available = (
+        result[
+            source_column
+        ].notna()
+        &
+        result[
+            availability_column
+        ].notna()
+    )
+
+    if timeframe in (
+        INTRADAY_SAME_SESSION_TIMEFRAMES
+    ):
+        decision_session = (
+            _nyse_session_key(
+                result[
+                    "decision_time"
+                ]
+            )
+        )
+
+        source_session = (
+            _nyse_session_key(
+                result[
+                    source_column
+                ]
+            )
+        )
+
+        available = (
+            available
+            &
+            decision_session.eq(
+                source_session
+            )
+        )
+
+    stale = ~available
+
+    if feature_columns:
+        result.loc[
+            stale,
+            feature_columns,
+        ] = np.nan
+
+    result.loc[
+        stale,
+        source_column,
+    ] = pd.NaT
+
+    result.loc[
+        stale,
+        availability_column,
+    ] = pd.NaT
+
+    if age_column in result:
+        result.loc[
+            stale,
+            age_column,
+        ] = np.nan
+
+    result[
+        f"{timeframe}_available"
+    ] = available.astype(
+        "int8"
+    )
+
+    return result
+
+
 def build_causal_mtf_dataset(
     project_root: str | Path,
     symbol: str,
@@ -507,10 +627,31 @@ def build_causal_mtf_dataset(
             timeframe,
         )
 
+        source_column = (
+            f"{timeframe}_"
+            "source_bar_time"
+        )
+
         availability_column = (
             f"{timeframe}_"
             "availability_time"
         )
+
+        context_feature_columns = [
+            column
+            for column
+            in context.columns
+            if (
+                column.startswith(
+                    f"{timeframe}_"
+                )
+                and column
+                not in {
+                    source_column,
+                    availability_column,
+                }
+            )
+        ]
 
         result[
             "decision_time"
@@ -591,6 +732,14 @@ def build_causal_mtf_dataset(
         ] = (
             age_seconds
             / 60.0
+        )
+
+        result = apply_context_freshness(
+            result,
+            timeframe=timeframe,
+            feature_columns=(
+                context_feature_columns
+            ),
         )
 
         available_context.append(
