@@ -31,6 +31,42 @@ def forward_hold_return(
     )
 
 
+def forward_open_to_close_return(
+    open_: pd.Series,
+    close: pd.Series,
+    *,
+    hold_bars: int,
+) -> pd.Series:
+    if hold_bars < 1:
+        raise ValueError(
+            "hold_bars must be >= 1"
+        )
+
+    open_ = pd.to_numeric(
+        open_,
+        errors="coerce",
+    ).astype(float)
+
+    close = pd.to_numeric(
+        close,
+        errors="coerce",
+    ).astype(float)
+
+    entry = open_.shift(-1)
+
+    exit_price = close.shift(
+        -hold_bars
+    )
+
+    result = (
+        exit_price
+        / entry
+        - 1.0
+    )
+
+    return result
+
+
 def purged_periods(
     index: pd.DatetimeIndex,
     *,

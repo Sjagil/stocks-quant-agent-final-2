@@ -57,3 +57,44 @@ def test_purged_periods_leave_boundary_gap():
         valid_start
         > train_end
     )
+
+
+def test_forward_open_to_close_return_is_tradable():
+    from stocks.research.swing_labels import (
+        forward_open_to_close_return,
+    )
+
+    open_ = pd.Series(
+        [
+            100.0,
+            101.0,
+            102.0,
+            103.0,
+        ]
+    )
+
+    close = pd.Series(
+        [
+            100.5,
+            101.5,
+            102.5,
+            103.5,
+        ]
+    )
+
+    result = (
+        forward_open_to_close_return(
+            open_,
+            close,
+            hold_bars=2,
+        )
+    )
+
+    expected = (
+        102.5 / 101.0 - 1.0
+    )
+
+    assert abs(
+        result.iloc[0]
+        - expected
+    ) < 1e-12

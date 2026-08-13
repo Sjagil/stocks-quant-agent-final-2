@@ -647,6 +647,140 @@ def _fit_predict_lgbm(
         ).mean()
     )
 
+    labels = (
+        aligned["label"]
+        .astype(float)
+    )
+
+    predictions_series = (
+        aligned["prediction"]
+        .astype(float)
+    )
+
+    nonzero = (
+        labels != 0.0
+    )
+
+    labels_nonzero = labels.loc[
+        nonzero
+    ]
+
+    predictions_nonzero = (
+        predictions_series.loc[
+            nonzero
+        ]
+    )
+
+    actual_positive = (
+        labels_nonzero > 0.0
+    )
+
+    predicted_positive = (
+        predictions_nonzero > 0.0
+    )
+
+    positive_rate = float(
+        actual_positive.mean()
+    )
+
+    majority_class_accuracy = float(
+        max(
+            positive_rate,
+            1.0 - positive_rate,
+        )
+    )
+
+    directional_accuracy_nonzero = float(
+        (
+            actual_positive
+            == predicted_positive
+        ).mean()
+    )
+
+    positive_count = int(
+        actual_positive.sum()
+    )
+
+    negative_count = int(
+        (~actual_positive).sum()
+    )
+
+    if positive_count:
+        positive_recall = float(
+            predicted_positive.loc[
+                actual_positive
+            ].mean()
+        )
+    else:
+        positive_recall = None
+
+    if negative_count:
+        negative_recall = float(
+            (
+                ~predicted_positive.loc[
+                    ~actual_positive
+                ]
+            ).mean()
+        )
+    else:
+        negative_recall = None
+
+    if (
+        positive_recall is not None
+        and negative_recall is not None
+    ):
+        balanced_directional_accuracy = (
+            0.5
+            * (
+                positive_recall
+                + negative_recall
+            )
+        )
+    else:
+        balanced_directional_accuracy = (
+            None
+        )
+
+    directional_edge_vs_majority = (
+        directional_accuracy_nonzero
+        - majority_class_accuracy
+    )
+
+    lower_threshold = float(
+        predictions_series.quantile(
+            0.20
+        )
+    )
+
+    upper_threshold = float(
+        predictions_series.quantile(
+            0.80
+        )
+    )
+
+    bottom_returns = labels.loc[
+        predictions_series
+        <= lower_threshold
+    ]
+
+    top_returns = labels.loc[
+        predictions_series
+        >= upper_threshold
+    ]
+
+    bottom_quintile_mean_return = float(
+        bottom_returns.mean()
+    )
+
+    top_quintile_mean_return = float(
+        top_returns.mean()
+    )
+
+    top_bottom_return_spread = float(
+        top_quintile_mean_return
+        - bottom_quintile_mean_return
+    )
+
     symbol = str(
         payload.get(
             "symbol"
@@ -707,6 +841,36 @@ def _fit_predict_lgbm(
         "mse": mse,
         "directional_accuracy": (
             directional_accuracy
+        ),
+        "directional_accuracy_nonzero": (
+            directional_accuracy_nonzero
+        ),
+        "label_positive_rate": (
+            positive_rate
+        ),
+        "majority_class_accuracy": (
+            majority_class_accuracy
+        ),
+        "directional_edge_vs_majority": (
+            directional_edge_vs_majority
+        ),
+        "positive_recall": (
+            positive_recall
+        ),
+        "negative_recall": (
+            negative_recall
+        ),
+        "balanced_directional_accuracy": (
+            balanced_directional_accuracy
+        ),
+        "top_quintile_mean_return": (
+            top_quintile_mean_return
+        ),
+        "bottom_quintile_mean_return": (
+            bottom_quintile_mean_return
+        ),
+        "top_bottom_return_spread": (
+            top_bottom_return_spread
         ),
         "periods": periods,
         "purge_bars": int(
