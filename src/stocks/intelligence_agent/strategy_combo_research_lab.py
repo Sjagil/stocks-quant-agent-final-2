@@ -6809,9 +6809,13 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     sub = parser.add_subparsers(dest="command", required=True)
-    from stocks.research.parameter_research_v2 import add_parameter_research_parser
+    try:
+        from stocks.research.parameter_research_v2 import add_parameter_research_parser
+    except ImportError:
+        add_parameter_research_parser = None
 
-    add_parameter_research_parser(sub)
+    if add_parameter_research_parser is not None:
+        add_parameter_research_parser(sub)
     sub.add_parser(
         "list", help="List implemented and explicitly blocked transcript strategies."
     )

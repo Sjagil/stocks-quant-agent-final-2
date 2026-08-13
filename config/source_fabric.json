@@ -1,0 +1,87 @@
+{
+  "schema": "source_fabric_v1",
+  "policies": {
+    "live_quotes": [
+      "ibkr",
+      "polygon",
+      "twelvedata",
+      "finnhub"
+    ],
+    "historical_bars": [
+      "eodhd",
+      "polygon",
+      "twelvedata",
+      "marketstack",
+      "finnhub",
+      "ibkr",
+      "alphavantage",
+      "yfinance"
+    ],
+    "fundamentals": [
+      "sec_edgar",
+      "fmp",
+      "eodhd",
+      "finnhub",
+      "yfinance"
+    ],
+    "news": [
+      "eodhd",
+      "alphavantage",
+      "marketaux",
+      "currents",
+      "finnhub",
+      "rss",
+      "stocks_reference_news"
+    ],
+    "events": [
+      "sec_edgar",
+      "stocks_reference_sec",
+      "rss",
+      "eodhd",
+      "finnhub"
+    ],
+    "macro": [
+      "fred",
+      "us_treasury_fiscaldata",
+      "nasdaq_data_link"
+    ],
+    "fx": [
+      "openexchangerates",
+      "currencylayer"
+    ],
+    "options": [
+      "thetadata",
+      "polygon",
+      "ibkr",
+      "yfinance"
+    ],
+    "gex": [
+      "thetadata",
+      "polygon",
+      "ibkr",
+      "yfinance"
+    ],
+    "symbol_mapping": [
+      "openfigi",
+      "eodhd",
+      "polygon",
+      "finnhub"
+    ],
+    "scanner": [
+      "stocks_reference_screener"
+    ],
+    "cross_asset": [
+      "nasdaq_data_link",
+      "dune"
+    ]
+  },
+  "rules": {
+    "average_provider_ohlc": false,
+    "forward_fill_missing_market_bars": false,
+    "fabricate_missing_volume": false,
+    "preserve_source_provenance": true,
+    "retain_provider_disagreements": true,
+    "deduplicate_news_before_nlp": true,
+    "source_count_is_not_independent_signal_count": true
+  }
+}
