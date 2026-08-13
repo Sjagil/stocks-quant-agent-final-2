@@ -168,3 +168,99 @@ def test_rolling_context_restarts_after_gap():
     assert (
         gap_time not in result.index
     )
+
+
+def test_final_1h_bar_is_available_at_market_close():
+    index = pd.DatetimeIndex(
+        [
+            "2026-01-05 20:30:00+00:00",
+        ]
+    )
+
+    frame = pd.DataFrame(
+        {
+            "open": [100.0],
+            "high": [101.0],
+            "low": [99.0],
+            "close": [100.5],
+            "volume": [1000.0],
+        },
+        index=index,
+    )
+
+    result = with_availability(
+        frame,
+        timeframe="1h",
+    )
+
+    assert (
+        result[
+            "availability_time"
+        ].iloc[0]
+        ==
+        pd.Timestamp(
+            "2026-01-05 21:00:00+00:00"
+        )
+    )
+
+
+def test_early_close_drops_bar_starting_at_market_close():
+    index = pd.DatetimeIndex(
+        [
+            "2024-11-29 17:30:00+00:00",
+            "2024-11-29 18:00:00+00:00",
+        ]
+    )
+
+    frame = pd.DataFrame(
+        {
+            "open": [
+                100.0,
+                101.0,
+            ],
+            "high": [
+                101.0,
+                102.0,
+            ],
+            "low": [
+                99.0,
+                100.0,
+            ],
+            "close": [
+                100.5,
+                101.5,
+            ],
+            "volume": [
+                1000.0,
+                1100.0,
+            ],
+        },
+        index=index,
+    )
+
+    result = with_availability(
+        frame,
+        timeframe="1h",
+    )
+
+    assert len(result) == 1
+
+    assert (
+        result[
+            "bar_time"
+        ].iloc[0]
+        ==
+        pd.Timestamp(
+            "2024-11-29 17:30:00+00:00"
+        )
+    )
+
+    assert (
+        result[
+            "availability_time"
+        ].iloc[0]
+        ==
+        pd.Timestamp(
+            "2024-11-29 18:00:00+00:00"
+        )
+    )

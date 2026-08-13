@@ -70,23 +70,124 @@ def intraday_availability(
         result.index
     )
 
+    if result.empty:
+        result["bar_time"] = (
+            pd.DatetimeIndex(
+                [],
+                tz="UTC",
+            )
+        )
+
+        result[
+            "availability_time"
+        ] = pd.DatetimeIndex(
+            [],
+            tz="UTC",
+        )
+
+        return result
+
     minutes = (
         INTRADAY_AVAILABILITY_MINUTES[
             timeframe
         ]
     )
 
-    result[
-        "bar_time"
-    ] = result.index
+    schedule = _nyse_schedule(
+        result.index.min()
+        - pd.Timedelta(
+            days=3
+        ),
+        result.index.max()
+        + pd.Timedelta(
+            days=3
+        ),
+    )
+
+    sessions = {}
+
+    for session_date, row in (
+        schedule.iterrows()
+    ):
+        key = pd.Timestamp(
+            session_date
+        ).date()
+
+        sessions[key] = (
+            pd.Timestamp(
+                row["market_open"]
+            ).tz_convert(
+                "UTC"
+            ),
+            pd.Timestamp(
+                row["market_close"]
+            ).tz_convert(
+                "UTC"
+            ),
+        )
+
+    keep_positions = []
+    availability = []
+
+    for position, bar_time in enumerate(
+        result.index
+    ):
+        local_date = (
+            bar_time
+            .tz_convert(
+                "America/New_York"
+            )
+            .date()
+        )
+
+        session = sessions.get(
+            local_date
+        )
+
+        if session is None:
+            continue
+
+        market_open, market_close = (
+            session
+        )
+
+        if not (
+            market_open
+            <= bar_time
+            < market_close
+        ):
+            continue
+
+        candidate = (
+            bar_time
+            + pd.Timedelta(
+                minutes=minutes
+            )
+        )
+
+        keep_positions.append(
+            position
+        )
+
+        availability.append(
+            min(
+                candidate,
+                market_close,
+            )
+        )
+
+    result = result.iloc[
+        keep_positions
+    ].copy()
+
+    result["bar_time"] = (
+        result.index
+    )
 
     result[
         "availability_time"
-    ] = (
-        result.index
-        + pd.Timedelta(
-            minutes=minutes
-        )
+    ] = pd.DatetimeIndex(
+        availability
     )
 
     return result
