@@ -12,11 +12,16 @@ from _common import (
     run_worker,
 )
 
+from qlib_panel import (
+    fit_predict_panel_lgbm,
+)
+
 
 CAPABILITIES = (
     "health",
     "catalog",
     "fit_predict_lgbm",
+    "fit_predict_panel_lgbm",
 )
 
 
@@ -1004,6 +1009,14 @@ def handle(
         "fit_predict_lgbm"
     ):
         return _fit_predict_lgbm(
+            request,
+            artifact_dir,
+        )
+
+    if action == (
+        "fit_predict_panel_lgbm"
+    ):
+        return fit_predict_panel_lgbm(
             request,
             artifact_dir,
         )

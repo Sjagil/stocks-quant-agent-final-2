@@ -52,7 +52,7 @@ integrations:
     repo: references/qlib
     distributions: [pyqlib]
     imports: [qlib]
-    capabilities: [health, catalog, fit_predict_lgbm]
+    capabilities: [health, catalog, fit_predict_lgbm, fit_predict_panel_lgbm]
     timeout_seconds: 900
     upgrade:
       strategy: isolated_candidate
