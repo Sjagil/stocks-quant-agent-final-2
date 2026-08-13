@@ -152,12 +152,21 @@ def _candidate_paths(
     if timeframe == "1h":
         return (
             root / "data" / "adjusted" / f"{symbol}_1h.parquet",
+            root / "data" / "derived" / f"{symbol}_1h.parquet",
             root / "data" / "processed" / f"{symbol}_1h.parquet",
+        )
+
+    if timeframe == "15m":
+        return (
+            root / "data" / "derived" / f"{symbol}_15m.parquet",
+            root / "data" / "processed" / f"{symbol}_15m.parquet",
+            root / "data" / "adjusted" / f"{symbol}_15m.parquet",
         )
 
     return (
         root / "data" / "processed" / f"{symbol}_{timeframe}.parquet",
         root / "data" / "adjusted" / f"{symbol}_{timeframe}.parquet",
+        root / "data" / "derived" / f"{symbol}_{timeframe}.parquet",
     )
 
 
