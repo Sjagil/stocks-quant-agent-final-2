@@ -1,0 +1,138 @@
+schema_version: 1
+
+engines:
+  moondev:
+    mode: integration_worker
+    actions:
+      hypothesis:
+        stage: hypothesis
+        artifact_kind: hypothesis
+        status: planned
+      critique:
+        stage: hypothesis
+        artifact_kind: critique
+        status: planned
+
+  vectorbt:
+    mode: direct_python
+    actions:
+      fast_discovery:
+        stage: rapid_discovery
+        artifact_kind: strategy_screen
+        status: implemented
+
+  optuna:
+    mode: direct_python
+    actions:
+      parameter_search:
+        stage: parameter_search
+        artifact_kind: optimization
+        status: implemented
+
+  vnpy:
+    mode: integration_worker
+    actions:
+      alpha158:
+        stage: factor_research
+        artifact_kind: features
+        status: implemented
+      alpha_model:
+        stage: factor_research
+        artifact_kind: prediction
+        status: planned
+
+  qlib:
+    mode: integration_worker
+    actions:
+      fit_predict_lgbm:
+        stage: predictive_modeling
+        artifact_kind: prediction
+        status: planned
+      rolling_predict:
+        stage: predictive_modeling
+        artifact_kind: prediction
+        status: planned
+
+  pybroker:
+    mode: direct_python
+    actions:
+      walkforward_validate:
+        stage: independent_walk_forward
+        artifact_kind: validation
+        status: planned
+
+  sb3_contrib:
+    mode: direct_python
+    actions:
+      maskable_position_policy:
+        stage: reinforcement_learning
+        artifact_kind: rl_policy
+        status: planned
+
+  finrl:
+    mode: integration_worker
+    actions:
+      adaptive_rotation_weights:
+        stage: portfolio_rl
+        artifact_kind: target_weights
+        status: planned
+      drl_target_weights:
+        stage: portfolio_rl
+        artifact_kind: target_weights
+        status: planned
+
+  skfolio:
+    mode: direct_python
+    actions:
+      portfolio_weights:
+        stage: portfolio_construction
+        artifact_kind: target_weights
+        status: implemented
+      combinatorial_validation:
+        stage: portfolio_construction
+        artifact_kind: validation
+        status: planned
+
+  nautilus:
+    mode: integration_worker
+    actions:
+      event_backtest:
+        stage: event_driven_validation
+        artifact_kind: validation
+        status: planned
+
+  lean:
+    mode: cli
+    actions:
+      finalist_backtest:
+        stage: event_driven_validation
+        artifact_kind: validation
+        status: planned
+
+  stocks_reference:
+    mode: subprocess_reference
+    actions:
+      news_link:
+        stage: evidence_enrichment
+        artifact_kind: news_evidence
+        status: planned
+      screener_candidates:
+        stage: candidate_generation
+        artifact_kind: candidates
+        status: planned
+      sec_overlay:
+        stage: evidence_enrichment
+        artifact_kind: sec_evidence
+        status: planned
+      orderflow_features:
+        stage: evidence_enrichment
+        artifact_kind: microstructure
+        status: planned
+
+  vnpy_ib:
+    mode: donor
+    actions:
+      contract_crosscheck:
+        stage: broker_architecture_crosscheck
+        artifact_kind: contract_validation
+        status: donor
