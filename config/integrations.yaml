@@ -68,8 +68,12 @@ integrations:
     repo: references/Stocks
     distributions: []
     imports: []
-    capabilities: [health, catalog, news_link]
-    timeout_seconds: 300
+    capabilities: [health, catalog, news_link, multitimeframe_collect]
+    pass_env:
+      - EODHD_API_KEY
+      - EOD_API_KEY
+      - EODHISTORICALDATA_API_KEY
+    timeout_seconds: 900
 
   finrl:
     enabled: true

@@ -17,6 +17,7 @@ CAPABILITIES = (
     "health",
     "catalog",
     "news_link",
+    "multitimeframe_collect",
 )
 
 
@@ -587,6 +588,435 @@ def _news_link(
     }
 
 
+
+def _payload_list(
+    payload: dict,
+    key: str,
+    default: tuple[str, ...],
+) -> list[str]:
+    value = payload.get(
+        key,
+        list(default),
+    )
+
+    if isinstance(value, str):
+        values = value.split(",")
+    else:
+        values = list(value or default)
+
+    return [
+        str(item).strip()
+        for item in values
+        if str(item).strip()
+    ]
+
+
+def _partition_value(
+    path: Path,
+    prefix: str,
+) -> str | None:
+    for part in path.parts:
+        if part.startswith(prefix):
+            return part.split(
+                "=",
+                1,
+            )[1]
+
+    return None
+
+
+def _multitimeframe_collect(
+    request: dict,
+    artifact_dir: Path,
+) -> dict:
+    repo = _repo(
+        request
+    )
+
+    add_repo_src(
+        repo
+    )
+
+    from stocks.data.multitimeframe import (
+        audit_multitimeframe_sources,
+        collect_multitimeframe_data,
+        multitimeframe_status,
+        provider_inventory,
+        validate_multitimeframe_cache,
+    )
+
+    payload = dict(
+        request.get(
+            "payload"
+        )
+        or {}
+    )
+
+    symbols = [
+        symbol.upper()
+        for symbol in _payload_list(
+            payload,
+            "symbols",
+            (
+                "AAPL",
+                "SPY",
+            ),
+        )
+    ]
+
+    intervals = [
+        interval.lower()
+        for interval in _payload_list(
+            payload,
+            "intervals",
+            (
+                "15m",
+                "1h",
+                "1d",
+            ),
+        )
+    ]
+
+    providers = [
+        provider.lower()
+        for provider in _payload_list(
+            payload,
+            "providers",
+            (
+                "eodhd",
+                "yfinance",
+            ),
+        )
+    ]
+
+    allowed_intervals = {
+        "15m",
+        "1h",
+        "1d",
+    }
+
+    unsupported_intervals = (
+        set(intervals)
+        - allowed_intervals
+    )
+
+    if unsupported_intervals:
+        raise ValueError(
+            "stocks_reference acquisition only accepts "
+            "native 15m, 1h and 1d inputs; "
+            "2h/4h/1w belong to the canonical main "
+            "timeframe pipeline: "
+            + ", ".join(
+                sorted(
+                    unsupported_intervals
+                )
+            )
+        )
+
+    allowed_providers = {
+        "eodhd",
+        "yfinance",
+    }
+
+    unsupported_providers = (
+        set(providers)
+        - allowed_providers
+    )
+
+    if unsupported_providers:
+        raise ValueError(
+            "unsupported acquisition provider(s): "
+            + ", ".join(
+                sorted(
+                    unsupported_providers
+                )
+            )
+        )
+
+    workspace = (
+        artifact_dir
+        / "stocks_reference_market_data"
+    )
+
+    workspace.mkdir(
+        parents=True,
+        exist_ok=False,
+    )
+
+    inventory = provider_inventory(
+        workspace
+    )
+
+    collection = collect_multitimeframe_data(
+        workspace,
+        symbols=symbols,
+        intervals=intervals,
+        providers=providers,
+        start=payload.get(
+            "start"
+        ),
+        end=payload.get(
+            "end"
+        ),
+        lookback_days=int(
+            payload.get(
+                "lookback_days",
+                60,
+            )
+        ),
+    )
+
+    validation = (
+        validate_multitimeframe_cache(
+            workspace
+        )
+    )
+
+    status = multitimeframe_status(
+        workspace
+    )
+
+    audit = audit_multitimeframe_sources(
+        workspace
+    )
+
+    private_root = (
+        workspace
+        / "data"
+        / "research"
+        / "multitimeframe"
+        / "private"
+    )
+
+    bars = []
+
+    for path in sorted(
+        private_root.rglob(
+            "bars.parquet"
+        )
+    ):
+        bars.append(
+            {
+                "path": str(
+                    path
+                ),
+                "relative_path": str(
+                    path.relative_to(
+                        artifact_dir
+                    )
+                ),
+                "provider": _partition_value(
+                    path,
+                    "provider=",
+                ),
+                "symbol": _partition_value(
+                    path,
+                    "symbol=",
+                ),
+                "interval": _partition_value(
+                    path,
+                    "interval=",
+                ),
+                "source_interval": (
+                    _partition_value(
+                        path,
+                        "source_interval=",
+                    )
+                ),
+                "size_bytes": (
+                    path.stat().st_size
+                ),
+            }
+        )
+
+    index_path = (
+        artifact_dir
+        / "stocks_reference_market_data_index.json"
+    )
+
+    index_payload = {
+        "schema": (
+            "stocks_reference_market_data_index_v1"
+        ),
+        "symbols": symbols,
+        "intervals": intervals,
+        "providers": providers,
+        "workspace": str(
+            workspace
+        ),
+        "bar_file_count": len(
+            bars
+        ),
+        "bars": bars,
+        "inventory_status": (
+            inventory.get(
+                "status"
+            )
+        ),
+        "collection_status": (
+            collection.get(
+                "status"
+            )
+        ),
+        "validation_status": (
+            validation.get(
+                "status"
+            )
+        ),
+        "current_data_status": (
+            status.get(
+                "current_data_status"
+            )
+        ),
+        "coverage_ratio": (
+            status.get(
+                "coverage_ratio"
+            )
+        ),
+        "material_divergence_count": (
+            audit.get(
+                "material_divergence_count"
+            )
+        ),
+        "execution_authority": "NONE",
+        "broker_calls": 0,
+    }
+
+    index_path.write_text(
+        json.dumps(
+            index_payload,
+            indent=2,
+            sort_keys=True,
+            default=str,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    artifacts = [
+        artifact_ref(
+            index_path,
+            media_type="application/json",
+            rows=len(
+                bars
+            ),
+        )
+    ]
+
+    output_root = (
+        workspace
+        / "output"
+        / "research"
+        / "multitimeframe"
+    )
+
+    for name in (
+        "provider-inventory.json",
+        "collection-manifest.json",
+        "cache-validation.json",
+        "status.json",
+        "cross-provider-audit.json",
+        "privacy-audit.json",
+    ):
+        path = (
+            output_root
+            / name
+        )
+
+        if path.is_file():
+            artifacts.append(
+                artifact_ref(
+                    path,
+                    media_type=(
+                        "application/json"
+                    ),
+                )
+            )
+
+    state = (
+        "OK"
+        if (
+            collection.get(
+                "status"
+            )
+            == "GO"
+            and validation.get(
+                "status"
+            )
+            == "GO"
+        )
+        else "DEGRADED"
+    )
+
+    warnings = []
+
+    if (
+        audit.get(
+            "material_divergence_count",
+            0,
+        )
+    ):
+        warnings.append(
+            "cross-provider material divergence detected"
+        )
+
+    return {
+        "state": state,
+        "data": {
+            "symbols": symbols,
+            "intervals": intervals,
+            "providers": providers,
+            "workspace": str(
+                workspace
+            ),
+            "bar_file_count": len(
+                bars
+            ),
+            "collection_status": (
+                collection.get(
+                    "status"
+                )
+            ),
+            "validation_status": (
+                validation.get(
+                    "status"
+                )
+            ),
+            "multi_timeframe_status": (
+                status.get(
+                    "status"
+                )
+            ),
+            "current_data_status": (
+                status.get(
+                    "current_data_status"
+                )
+            ),
+            "coverage_ratio": (
+                status.get(
+                    "coverage_ratio"
+                )
+            ),
+            "current_data_ratio": (
+                status.get(
+                    "current_data_ratio"
+                )
+            ),
+            "material_divergence_count": (
+                audit.get(
+                    "material_divergence_count",
+                    0,
+                )
+            ),
+            "execution_authority": (
+                "NONE"
+            ),
+            "broker_calls": 0,
+        },
+        "artifacts": artifacts,
+        "warnings": warnings,
+    }
+
 def handle(
     request: dict,
     artifact_dir: Path,
@@ -607,6 +1037,12 @@ def handle(
 
     if action == "news_link":
         return _news_link(
+            request,
+            artifact_dir,
+        )
+
+    if action == "multitimeframe_collect":
+        return _multitimeframe_collect(
             request,
             artifact_dir,
         )
