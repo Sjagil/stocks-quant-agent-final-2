@@ -107,7 +107,7 @@ engines:
       screener_candidates:
         stage: candidate_generation
         artifact_kind: candidates
-        status: planned
+        status: implemented
       sec_overlay:
         stage: evidence_enrichment
         artifact_kind: sec_evidence

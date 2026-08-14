@@ -1,0 +1,7 @@
+{
+  "schema": "candidate_discovery_policy_v1",
+  "gem_market_cap_ceiling_usd": 25000000000,
+  "tactical_min_technical_score": 65.0,
+  "tactical_min_absolute_daily_return": 0.025,
+  "maximum_candidates": 150
+}

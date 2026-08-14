@@ -68,7 +68,7 @@ integrations:
     repo: references/Stocks
     distributions: []
     imports: []
-    capabilities: [health, catalog, news_link, multitimeframe_collect]
+    capabilities: [health, catalog, news_link, screener_candidates, multitimeframe_collect]
     pass_env:
       - EODHD_API_KEY
       - EOD_API_KEY

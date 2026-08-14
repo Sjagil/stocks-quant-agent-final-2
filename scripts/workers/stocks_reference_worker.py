@@ -17,6 +17,7 @@ CAPABILITIES = (
     "health",
     "catalog",
     "news_link",
+    "screener_candidates",
     "multitimeframe_collect",
 )
 
@@ -589,6 +590,298 @@ def _news_link(
 
 
 
+def _screener_candidates(
+    request: dict,
+    artifact_dir: Path,
+) -> dict:
+    from collections import Counter
+    from dataclasses import replace
+    from datetime import date
+
+    repo = _repo(
+        request
+    )
+
+    add_repo_src(
+        repo
+    )
+
+    from stocks.macro.service import (
+        macro_context_at,
+    )
+    from stocks.screener.config import (
+        ScreenerConfig,
+    )
+    from stocks.screener.scoring import (
+        score_asset,
+    )
+    from stocks.screener.sources import (
+        LocalScreenerSources,
+        decision_time_for_session,
+        latest_completed_session,
+    )
+    from stocks.screener.storage import (
+        CANDIDATE_CLASSES,
+    )
+
+    payload = dict(
+        request.get(
+            "payload"
+        )
+        or {}
+    )
+
+    raw_as_of = payload.get(
+        "as_of"
+    )
+
+    screening_date = (
+        date.fromisoformat(
+            str(
+                raw_as_of
+            )
+        )
+        if raw_as_of
+        else latest_completed_session()
+    )
+
+    limit = int(
+        payload.get(
+            "limit",
+            150,
+        )
+    )
+
+    if not 1 <= limit <= 500:
+        raise ValueError(
+            "screener candidate limit "
+            "must be in [1, 500]"
+        )
+
+    config = (
+        ScreenerConfig.load(
+            repo
+        )
+    )
+
+    decision_time = (
+        decision_time_for_session(
+            screening_date
+        )
+    )
+
+    with LocalScreenerSources(
+        repo,
+        config,
+    ) as sources:
+        snapshots = sources.load(
+            screening_date,
+            known_at=decision_time,
+        )
+
+        macro_context = (
+            macro_context_at(
+                repo,
+                as_of=decision_time,
+            )
+        )
+
+        scored = [
+            score_asset(
+                replace(
+                    snapshot
+                ),
+                screening_date=(
+                    screening_date
+                ),
+                config=config,
+                macro_context=(
+                    macro_context
+                ),
+                known_at=(
+                    decision_time
+                ),
+            )
+            for snapshot
+            in snapshots
+        ]
+
+        records = [
+            item.public
+            for item
+            in scored
+        ]
+
+        source_inventory = dict(
+            sources.source_inventory
+        )
+
+    classifications = Counter(
+        str(
+            row.get(
+                "classification"
+            )
+        )
+        for row in records
+    )
+
+    candidates = [
+        row
+        for row
+        in records
+        if (
+            str(
+                row.get(
+                    "classification"
+                )
+            )
+            in CANDIDATE_CLASSES
+        )
+    ]
+
+    candidates = sorted(
+        candidates,
+        key=lambda row: (
+            float(
+                row.get(
+                    "total_score"
+                )
+                or 0.0
+            ),
+            float(
+                row.get(
+                    "technical_score"
+                )
+                or 0.0
+            ),
+            str(
+                row.get(
+                    "symbol"
+                )
+                or ""
+            ),
+        ),
+        reverse=True,
+    )
+
+    candidates = (
+        candidates[
+            :limit
+        ]
+    )
+
+    output = (
+        artifact_dir
+        / (
+            "stocks_reference_"
+            "screener_candidates.json"
+        )
+    )
+
+    artifact = {
+        "schema": (
+            "stocks_reference_"
+            "screener_candidates_v1"
+        ),
+        "screening_date": (
+            screening_date.isoformat()
+        ),
+        "decision_time": (
+            decision_time.isoformat()
+        ),
+        "screened_count": int(
+            len(
+                records
+            )
+        ),
+        "candidate_count": int(
+            len(
+                candidates
+            )
+        ),
+        "classification_counts": dict(
+            sorted(
+                classifications.items()
+            )
+        ),
+        "candidate_classes": sorted(
+            CANDIDATE_CLASSES
+        ),
+        "records": candidates,
+        "source_inventory": (
+            source_inventory
+        ),
+        "config_hash": (
+            config.config_hash
+        ),
+        "screener_version": (
+            config.screener_version
+        ),
+        "selection_hidden_optimization": (
+            False
+        ),
+        "execution_authority": (
+            "NONE"
+        ),
+        "strategy_authority": (
+            "NONE"
+        ),
+        "broker_calls": 0,
+        "order_calls": 0,
+    }
+
+    output.write_text(
+        json.dumps(
+            artifact,
+            indent=2,
+            sort_keys=True,
+            default=str,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    return {
+        "state": "OK",
+        "data": {
+            "screening_date": (
+                screening_date
+                .isoformat()
+            ),
+            "screened_count": int(
+                len(
+                    records
+                )
+            ),
+            "candidate_count": int(
+                len(
+                    candidates
+                )
+            ),
+            "classification_counts": dict(
+                sorted(
+                    classifications.items()
+                )
+            ),
+            "execution_authority": (
+                "NONE"
+            ),
+            "broker_calls": 0,
+        },
+        "artifacts": [
+            artifact_ref(
+                output,
+                media_type=(
+                    "application/json"
+                ),
+                rows=len(
+                    candidates
+                ),
+            )
+        ],
+    }
+
+
 def _payload_list(
     payload: dict,
     key: str,
@@ -1037,6 +1330,12 @@ def handle(
 
     if action == "news_link":
         return _news_link(
+            request,
+            artifact_dir,
+        )
+
+    if action == "screener_candidates":
+        return _screener_candidates(
             request,
             artifact_dir,
         )
