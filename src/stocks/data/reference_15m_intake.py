@@ -692,6 +692,426 @@ def append_newer_only(
     )
 
 
+def prepend_older_only(
+    base: pd.DataFrame | None,
+    incoming: pd.DataFrame,
+) -> tuple[
+    pd.DataFrame,
+    pd.DataFrame,
+]:
+    if (
+        base is None
+        or base.empty
+    ):
+        result = canonicalize_ohlcv(
+            incoming.copy()
+        )
+
+        validate_canonical(
+            result
+        )
+
+        return (
+            result,
+            result.copy(),
+        )
+
+    prepended = incoming.loc[
+        incoming.index
+        < base.index.min()
+    ].copy()
+
+    if prepended.empty:
+        return (
+            base.copy(),
+            prepended,
+        )
+
+    result = canonicalize_ohlcv(
+        pd.concat(
+            [
+                prepended,
+                base,
+            ]
+        ).sort_index()
+    )
+
+    validate_canonical(
+        result
+    )
+
+    return (
+        result,
+        prepended,
+    )
+
+
+def existing_provenance(
+    base_path: Path,
+    base: pd.DataFrame,
+) -> pd.DataFrame:
+    provenance_path = (
+        base_path.with_name(
+            base_path.stem
+            + ".provenance.parquet"
+        )
+    )
+
+    if provenance_path.is_file():
+        provenance = pd.read_parquet(
+            provenance_path
+        )
+
+        provenance.index = (
+            pd.DatetimeIndex(
+                pd.to_datetime(
+                    provenance.index,
+                    utc=True,
+                    errors="coerce",
+                )
+            )
+        )
+
+        if provenance.index.isna().any():
+            raise ValueError(
+                "existing provenance "
+                "contains invalid timestamps"
+            )
+
+        provenance = (
+            provenance.loc[
+                ~provenance.index
+                .duplicated(
+                    keep="first"
+                )
+            ]
+            .sort_index()
+        )
+
+    else:
+        provenance = pd.DataFrame(
+            index=base.index
+        )
+
+    if (
+        "source_provider"
+        not in provenance
+    ):
+        provenance[
+            "source_provider"
+        ] = (
+            "EXISTING_CANONICAL_BASE"
+        )
+
+    if (
+        "source_path"
+        not in provenance
+    ):
+        provenance[
+            "source_path"
+        ] = str(
+            base_path
+        )
+
+    provenance = provenance.reindex(
+        base.index
+    )
+
+    provenance[
+        "source_provider"
+    ] = (
+        provenance[
+            "source_provider"
+        ]
+        .fillna(
+            "EXISTING_CANONICAL_BASE"
+        )
+    )
+
+    provenance[
+        "source_path"
+    ] = (
+        provenance[
+            "source_path"
+        ]
+        .fillna(
+            str(
+                base_path
+            )
+        )
+    )
+
+    return provenance
+
+
+def prepend_reference_15m(
+    project_root: str | Path,
+    index_path: str | Path,
+    symbol: str,
+    *,
+    as_of: str | pd.Timestamp | None,
+    provider: str = "EODHD",
+    min_provider_coverage: float = 0.95,
+    max_overlap_median_bps: float = 50.0,
+    max_overlap_p95_bps: float = 100.0,
+    max_overlap_bad_fraction: float = 0.01,
+) -> dict[str, Any]:
+    root = Path(
+        project_root
+    ).resolve()
+
+    index_path = (
+        Path(
+            index_path
+        )
+        .expanduser()
+        .resolve()
+    )
+
+    symbol = symbol.upper()
+    provider = provider.upper()
+
+    incoming_raw, incoming_path = (
+        load_reference_15m(
+            index_path,
+            provider=provider,
+            symbol=symbol,
+        )
+    )
+
+    incoming, incoming_audit = (
+        closed_rth_15m(
+            incoming_raw,
+            as_of=as_of,
+        )
+    )
+
+    if (
+        incoming_audit[
+            "coverage"
+        ]
+        < min_provider_coverage
+    ):
+        raise ValueError(
+            f"{symbol}: {provider} "
+            "historical RTH coverage "
+            f"{incoming_audit['coverage']:.4%} "
+            "< "
+            f"{min_provider_coverage:.4%}"
+        )
+
+    base, base_path = existing_base(
+        root,
+        symbol,
+    )
+
+    if (
+        base is None
+        or base_path is None
+    ):
+        raise ValueError(
+            f"{symbol}: historical prepend "
+            "requires an existing canonical base"
+        )
+
+    base, base_audit = (
+        closed_rth_15m(
+            base,
+            as_of=as_of,
+        )
+    )
+
+    overlap = require_compatible_overlap(
+        base,
+        incoming,
+        max_median_bps=(
+            max_overlap_median_bps
+        ),
+        max_p95_bps=(
+            max_overlap_p95_bps
+        ),
+        max_bad_fraction=(
+            max_overlap_bad_fraction
+        ),
+        min_overlap_rows=20,
+    )
+
+    combined, prepended = (
+        prepend_older_only(
+            base,
+            incoming,
+        )
+    )
+
+    if prepended.empty:
+        raise ValueError(
+            f"{symbol}: no strictly older "
+            "historical rows to prepend"
+        )
+
+    target = (
+        root
+        / "data"
+        / "canonical"
+        / "provider_fabric"
+        / f"{symbol}_15m.parquet"
+    )
+
+    target.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    provenance = (
+        existing_provenance(
+            base_path,
+            base,
+        )
+    )
+
+    historical_provenance = (
+        pd.DataFrame(
+            {
+                "source_provider": (
+                    provider
+                    + "_HISTORICAL_PREPEND"
+                ),
+                "source_path": str(
+                    incoming_path
+                ),
+            },
+            index=prepended.index,
+        )
+    )
+
+    provenance = (
+        pd.concat(
+            [
+                historical_provenance,
+                provenance,
+            ]
+        )
+        .sort_index()
+        .reindex(
+            combined.index
+        )
+    )
+
+    if (
+        provenance[
+            "source_provider"
+        ]
+        .isna()
+        .any()
+    ):
+        raise ValueError(
+            "provenance coverage mismatch"
+        )
+
+    write_canonical_parquet(
+        combined,
+        target,
+        CanonicalMetadata(
+            symbol=symbol,
+            exchange="US",
+            timeframe="15m",
+            source=(
+                "REFERENCE_PROVIDER_FABRIC"
+            ),
+            adjustment=(
+                "validated_historical_prepend"
+            ),
+            provenance={
+                "historical_provider": (
+                    provider
+                ),
+                "historical_source": str(
+                    incoming_path
+                ),
+                "existing_base": str(
+                    base_path
+                ),
+                "overlap_priority": (
+                    "EXISTING_CANONICAL_BASE"
+                ),
+                "prepend_older_only": True,
+                "overlap_overwrite": False,
+                "provider_averaging": False,
+                "closed_rth_only": True,
+            },
+        ),
+        extra_metadata={
+            "historical_provider": (
+                incoming_audit
+            ),
+            "existing_base": (
+                base_audit
+            ),
+            "overlap": overlap,
+            "prepended_rows": int(
+                len(
+                    prepended
+                )
+            ),
+        },
+    )
+
+    provenance_path = (
+        target.with_name(
+            target.stem
+            + ".provenance.parquet"
+        )
+    )
+
+    provenance.to_parquet(
+        provenance_path
+    )
+
+    return {
+        "symbol": symbol,
+        "provider": provider,
+        "rows": int(
+            len(
+                combined
+            )
+        ),
+        "first": (
+            combined.index.min()
+            .isoformat()
+        ),
+        "last": (
+            combined.index.max()
+            .isoformat()
+        ),
+        "prepended_rows": int(
+            len(
+                prepended
+            )
+        ),
+        "incoming_coverage": float(
+            incoming_audit[
+                "coverage"
+            ]
+        ),
+        "overlap": overlap,
+        "source": str(
+            incoming_path
+        ),
+        "base": str(
+            base_path
+        ),
+        "output": str(
+            target
+        ),
+        "provenance": str(
+            provenance_path
+        ),
+        "execution_authority": "NONE",
+        "broker_calls": 0,
+    }
+
+
+
 def build_reference_15m(
     project_root: str | Path,
     index_path: str | Path,

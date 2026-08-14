@@ -130,3 +130,47 @@ def test_material_overlap_divergence_blocks():
             right,
             max_median_bps=50.0,
         )
+
+
+def test_prepend_older_never_overwrites_existing_history():
+    from stocks.data.reference_15m_intake import (
+        prepend_older_only,
+    )
+
+    base = frame(
+        [
+            "2026-01-05 15:00:00",
+            "2026-01-05 15:15:00",
+        ],
+        close=100.0,
+    )
+
+    incoming = frame(
+        [
+            "2026-01-05 14:30:00",
+            "2026-01-05 14:45:00",
+            "2026-01-05 15:00:00",
+        ],
+        close=101.0,
+    )
+
+    result, prepended = (
+        prepend_older_only(
+            base,
+            incoming,
+        )
+    )
+
+    assert len(result) == 4
+    assert len(prepended) == 2
+
+    assert (
+        result.loc[
+            pd.Timestamp(
+                "2026-01-05 "
+                "15:00:00+00:00"
+            ),
+            "close",
+        ]
+        == 100.0
+    )
