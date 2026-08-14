@@ -579,6 +579,11 @@ def main() -> int:
         default=4,
     )
 
+    parser.add_argument(
+        "--variants",
+        default=None,
+    )
+
     args = parser.parse_args()
 
     symbols = [
@@ -642,6 +647,42 @@ def main() -> int:
         )
         if item.strip()
     ]
+
+    if args.variants:
+        requested_variants = [
+            item.strip()
+            for item
+            in args.variants.split(
+                ","
+            )
+            if item.strip()
+        ]
+
+        unknown = (
+            set(
+                requested_variants
+            )
+            - set(
+                VARIANTS
+            )
+        )
+
+        if unknown:
+            raise ValueError(
+                "unknown variants: "
+                f"{sorted(unknown)}"
+            )
+
+        active_variants = {
+            key: VARIANTS[key]
+            for key
+            in requested_variants
+        }
+
+    else:
+        active_variants = dict(
+            VARIANTS
+        )
 
     registry = (
         IntegrationRegistry.load(
@@ -910,6 +951,9 @@ def main() -> int:
 
     results = []
 
+    oos_prediction_parts = []
+    expected_oos_prediction_parts = 0
+
     for hold_bars in (
         hold_bars_values
     ):
@@ -979,12 +1023,21 @@ def main() -> int:
             ),
         )
 
+        expected_oos_prediction_parts += (
+            len(
+                periods
+            )
+            * len(
+                active_variants
+            )
+        )
+
         variant_results = []
 
         for (
             variant,
             specification,
-        ) in VARIANTS.items():
+        ) in active_variants.items():
             timeframes = tuple(
                 specification[
                     "timeframes"
@@ -1133,6 +1186,71 @@ def main() -> int:
 
                 metrics = dict(
                     response.data
+                )
+
+                prediction_artifact = next(
+                    (
+                        artifact
+                        for artifact
+                        in response.artifacts
+                        if str(
+                            artifact.path
+                        ).endswith(
+                            "qlib_panel_predictions.parquet"
+                        )
+                    ),
+                    None,
+                )
+
+                if prediction_artifact is None:
+                    raise ValueError(
+                        "Qlib panel prediction "
+                        "artifact missing"
+                    )
+
+                predictions = pd.read_parquet(
+                    Path(
+                        prediction_artifact.path
+                    )
+                )
+
+                predictions[
+                    "datetime"
+                ] = pd.to_datetime(
+                    predictions[
+                        "datetime"
+                    ],
+                    utc=True,
+                )
+
+                predictions[
+                    "symbol"
+                ] = (
+                    predictions[
+                        "symbol"
+                    ]
+                    .astype(str)
+                    .str.upper()
+                )
+
+                predictions[
+                    "hold_bars"
+                ] = int(
+                    hold_bars
+                )
+
+                predictions[
+                    "variant"
+                ] = variant
+
+                predictions[
+                    "fold"
+                ] = int(
+                    fold_index
+                )
+
+                oos_prediction_parts.append(
+                    predictions
                 )
 
                 fold_results.append(
@@ -1335,6 +1453,121 @@ def main() -> int:
                 ),
             }
         )
+
+    if (
+        expected_oos_prediction_parts
+        <= 0
+    ):
+        raise ValueError(
+            "expected zero panel OOS "
+            "prediction artifacts"
+        )
+
+    if (
+        len(
+            oos_prediction_parts
+        )
+        != expected_oos_prediction_parts
+    ):
+        raise ValueError(
+            "panel OOS prediction "
+            "artifact count mismatch: "
+            f"expected "
+            f"{expected_oos_prediction_parts}, "
+            f"received "
+            f"{len(oos_prediction_parts)}"
+        )
+
+    oos_predictions = pd.concat(
+        oos_prediction_parts,
+        ignore_index=True,
+    )
+
+    oos_predictions[
+        "datetime"
+    ] = pd.to_datetime(
+        oos_predictions[
+            "datetime"
+        ],
+        utc=True,
+        errors="coerce",
+    )
+
+    if (
+        oos_predictions[
+            "datetime"
+        ]
+        .isna()
+        .any()
+    ):
+        raise ValueError(
+            "invalid OOS prediction "
+            "timestamp"
+        )
+
+    key_columns = [
+        "hold_bars",
+        "variant",
+        "fold",
+        "datetime",
+        "symbol",
+    ]
+
+    duplicates = int(
+        oos_predictions.duplicated(
+            subset=key_columns
+        ).sum()
+    )
+
+    if duplicates:
+        raise ValueError(
+            "duplicate panel OOS "
+            f"predictions: {duplicates}"
+        )
+
+    oos_predictions = (
+        oos_predictions.sort_values(
+            key_columns
+        )
+        .reset_index(
+            drop=True
+        )
+    )
+
+    oos_path = (
+        output_root
+        / "panel_oos_predictions.parquet"
+    )
+
+    oos_predictions.to_parquet(
+        oos_path,
+        index=False,
+    )
+
+    print()
+    print(
+        "OOS_PREDICTIONS",
+        oos_path,
+    )
+
+    print(
+        "OOS_PARTS",
+        len(
+            oos_prediction_parts
+        ),
+    )
+
+    print(
+        "OOS_ROWS",
+        len(
+            oos_predictions
+        ),
+    )
+
+    print(
+        "OOS_DUPLICATES",
+        duplicates,
+    )
 
     artifact = (
         output_root
