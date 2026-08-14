@@ -89,20 +89,44 @@ def load_reference_15m(
                 )
             ).lower()
             == "15m"
-            and str(
-                row.get(
-                    "source_interval",
-                    "",
+            and (
+                (
+                    provider
+                    == "EODHD"
+                    and str(
+                        row.get(
+                            "source_interval",
+                            "",
+                        )
+                    ).lower()
+                    == "5m"
+                    and str(
+                        row.get(
+                            "derivation",
+                            "",
+                        )
+                    ).upper()
+                    == "AGGREGATED_5M_TO_15M"
                 )
-            ).lower()
-            == "15m"
+                or (
+                    provider
+                    != "EODHD"
+                    and str(
+                        row.get(
+                            "source_interval",
+                            "",
+                        )
+                    ).lower()
+                    == "15m"
+                )
+            )
         )
     ]
 
     if len(matches) != 1:
         raise ValueError(
             f"{provider} {symbol}: "
-            f"expected one native 15m "
+            f"expected one qualified 15m "
             f"variant, found {len(matches)}"
         )
 
