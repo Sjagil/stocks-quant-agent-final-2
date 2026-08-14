@@ -53,7 +53,7 @@ engines:
       walkforward_validate:
         stage: independent_walk_forward
         artifact_kind: validation
-        status: planned
+        status: implemented
   sb3_contrib:
     mode: direct_python
     actions:

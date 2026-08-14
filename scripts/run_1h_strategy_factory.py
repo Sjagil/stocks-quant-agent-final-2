@@ -1005,41 +1005,73 @@ def main() -> int:
                 )
             )
 
+            selection_frequency = (
+                selected_folds
+                / max(
+                    len(folds),
+                    1,
+                )
+            )
+
             strong = (
-                evaluated_folds >= 2
+                evaluated_folds >= 3
+                and selection_frequency
+                >= 0.75
                 and positive_ratio
                 == 1.0
                 and stress_positive_ratio
-                >= (
-                    2.0
-                    / 3.0
-                )
+                == 1.0
                 and median_expectancy
+                > 0
+                and worst_expectancy
                 > 0
                 and median_stress
                 > 0
                 and median_pf
-                >= 1.10
+                >= 1.25
+            )
+
+            provisional = (
+                evaluated_folds >= 2
+                and selection_frequency
+                >= 0.50
+                and positive_ratio
+                == 1.0
+                and stress_positive_ratio
+                == 1.0
+                and median_expectancy
+                > 0
+                and worst_expectancy
+                > 0
+                and median_stress
+                > 0
+                and median_pf
+                > 1.10
             )
 
             survivor = (
-                evaluated_folds >= 2
+                evaluated_folds >= 3
+                and selection_frequency
+                >= 0.75
                 and positive_ratio
-                >= (
-                    2.0
-                    / 3.0
-                )
+                >= 0.75
+                and stress_positive_ratio
+                >= 0.75
                 and median_expectancy
                 > 0
                 and median_stress
                 > 0
                 and median_pf
-                > 1.0
+                > 1.10
             )
 
             if strong:
                 status = (
                     "STRONG_SURVIVOR"
+                )
+            elif provisional:
+                status = (
+                    "PROVISIONAL_SURVIVOR"
                 )
             elif survivor:
                 status = (
@@ -1088,6 +1120,9 @@ def main() -> int:
                     ),
                     "selected_folds": (
                         selected_folds
+                    ),
+                    "selection_frequency": (
+                        selection_frequency
                     ),
                     "evaluated_test_folds": (
                         evaluated_folds
@@ -1198,6 +1233,7 @@ def main() -> int:
         .isin(
             [
                 "SURVIVOR",
+                "PROVISIONAL_SURVIVOR",
                 "STRONG_SURVIVOR",
             ]
         )
@@ -1295,6 +1331,7 @@ def main() -> int:
                 .isin(
                     [
                         "SURVIVOR",
+                        "PROVISIONAL_SURVIVOR",
                         "STRONG_SURVIVOR",
                     ]
                 )

@@ -296,3 +296,174 @@ def test_prepare_one_hour_frame():
             "UTC]"
         )
     )
+
+
+def test_terminal_next_open_entry_does_not_create_same_bar_roundtrip():
+    from stocks.intelligence_agent.strategy_combo_research_lab import (
+        trades_from_signals,
+    )
+
+    dates = pd.date_range(
+        "2026-01-05 14:30:00+00:00",
+        periods=4,
+        freq="1h",
+    )
+
+    frame = pd.DataFrame(
+        {
+            "date": dates,
+            "open": [
+                100.0,
+                101.0,
+                102.0,
+                103.0,
+            ],
+            "high": [
+                101.0,
+                102.0,
+                103.0,
+                104.0,
+            ],
+            "low": [
+                99.0,
+                100.0,
+                101.0,
+                102.0,
+            ],
+            "close": [
+                100.5,
+                101.5,
+                102.5,
+                103.5,
+            ],
+        }
+    )
+
+    entry = np.asarray(
+        [
+            False,
+            False,
+            True,
+            False,
+        ]
+    )
+
+    exit_signal = np.asarray(
+        [
+            False,
+            False,
+            False,
+            False,
+        ]
+    )
+
+    result = trades_from_signals(
+        frame,
+        entry,
+        exit_signal,
+        force_close_end=True,
+    )
+
+    assert len(result) == 0
+
+
+def test_real_intrabar_stop_can_still_exit_on_entry_bar():
+    from stocks.intelligence_agent.strategy_combo_research_lab import (
+        trades_from_signals,
+    )
+
+    dates = pd.date_range(
+        "2026-01-05 14:30:00+00:00",
+        periods=5,
+        freq="1h",
+    )
+
+    frame = pd.DataFrame(
+        {
+            "date": dates,
+            "open": [
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+            ],
+            "high": [
+                101.0,
+                101.0,
+                101.0,
+                101.0,
+                101.0,
+            ],
+            "low": [
+                99.0,
+                99.0,
+                98.0,
+                99.0,
+                99.0,
+            ],
+            "close": [
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+                100.0,
+            ],
+        }
+    )
+
+    entry = np.asarray(
+        [
+            False,
+            True,
+            False,
+            False,
+            False,
+        ]
+    )
+
+    exit_signal = np.asarray(
+        [
+            False,
+            False,
+            False,
+            False,
+            False,
+        ]
+    )
+
+    stop_distance = np.asarray(
+        [
+            np.nan,
+            1.0,
+            np.nan,
+            np.nan,
+            np.nan,
+        ]
+    )
+
+    result = trades_from_signals(
+        frame,
+        entry,
+        exit_signal,
+        stop_distance=(
+            stop_distance
+        ),
+        max_hold=3,
+    )
+
+    assert len(result) == 1
+
+    assert (
+        result.durations[
+            0
+        ]
+        == 0
+    )
+
+    assert (
+        result.exit_prices[
+            0
+        ]
+        == 99.0
+    )

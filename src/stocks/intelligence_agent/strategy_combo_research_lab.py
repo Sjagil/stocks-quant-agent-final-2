@@ -1121,6 +1121,8 @@ def trades_from_signals(
         ):
             target_price = entry_price + float(target_distance[signal_idx])
 
+        intrabar_exit = False
+
         if stop_price is not None or target_price is not None:
             for j in range(entry_exec, exit_exec + 1):
                 stop_hit = stop_price is not None and lows[j] <= stop_price
@@ -1135,6 +1137,7 @@ def trades_from_signals(
                         else stop_price
                     )
                     forced = False
+                    intrabar_exit = True
                     break
                 if stop_hit:
                     assert stop_price is not None
@@ -1145,6 +1148,7 @@ def trades_from_signals(
                         else stop_price
                     )
                     forced = False
+                    intrabar_exit = True
                     break
                 if target_hit:
                     assert target_price is not None
@@ -1155,9 +1159,19 @@ def trades_from_signals(
                         else target_price
                     )
                     forced = False
+                    intrabar_exit = True
                     break
 
-        if exit_exec <= entry_exec and exit_price <= 0:
+        if (
+            exit_exec < entry_exec
+            or exit_price <= 0
+        ):
+            continue
+
+        if (
+            exit_exec == entry_exec
+            and not intrabar_exit
+        ):
             continue
         gross_return = exit_price / entry_price - 1.0
         if not math.isfinite(gross_return):
