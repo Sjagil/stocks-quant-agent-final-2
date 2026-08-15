@@ -1,0 +1,30 @@
+{
+  "schema": "indicator_strategy_discovery_policy_v1",
+  "symbols": ["AAPL", "AMD", "MSFT", "NVDA", "SPY", "QQQ", "GLD", "SLV", "CPER"],
+  "max_variants_per_template": 18,
+  "folds": 4,
+  "purge_bars": 42,
+  "top_per_family": 2,
+  "base_cost_bps_per_side": 3.0,
+  "stress_cost_bps_per_side": 10.0,
+  "min_train_trades": 20,
+  "min_valid_trades": 8,
+  "min_test_trades": 8,
+  "seed": 20260815,
+  "templates": [
+    "rsi_trend_reversion",
+    "stoch_trend_reversion",
+    "cci_trend_reversion",
+    "mfi_trend_reversion",
+    "macd_adx_reentry",
+    "roc_volume_momentum",
+    "bollinger_z_reversion",
+    "squeeze_breakout",
+    "adx_rsi_pullback",
+    "williams_trend_reversion",
+    "obv_breakout",
+    "rolling_vwap_reclaim",
+    "donchian_adx_breakout",
+    "multi_signal_ensemble"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+    "python.analysis.extraPaths": [
+        "./references/Stocks/src",
+        "./references/Stocks/src"
+    ]
+}

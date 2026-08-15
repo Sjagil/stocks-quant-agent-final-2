@@ -75,6 +75,21 @@ integrations:
       - EODHISTORICALDATA_API_KEY
     timeout_seconds: 900
 
+  stocks_context_reference:
+    enabled: true
+    kind: isolated_python
+    python: "${STOCKS_REFERENCE_PYTHON:-.venvs/stocks/bin/python}"
+    worker: scripts/workers/stocks_context_reference_worker.py
+    repo: references/Stocks
+    distributions: []
+    imports: []
+    capabilities: [health, catalog, discovery_context]
+    pass_env:
+      - EODHD_API_KEY
+      - EOD_API_KEY
+      - EODHISTORICALDATA_API_KEY
+    timeout_seconds: 900
+
   finrl:
     enabled: true
     kind: isolated_python
