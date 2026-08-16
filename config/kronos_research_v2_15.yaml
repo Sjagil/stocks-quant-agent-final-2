@@ -2,7 +2,6 @@ schema: kronos_research_v2_15
 execution_authority: NONE
 broker_order_submission: false
 automatic_live_promotion: false
-
 integration:
   model: NeoQuasar/Kronos-mini
   tokenizer: NeoQuasar/Kronos-Tokenizer-2k
@@ -16,7 +15,7 @@ integration:
   top_p: 0.9
   sample_count: 1
   device: auto
-
+  seed: 17
 backtest:
   timeframe: 1h
   base_cost_bps_per_side: 5.0
@@ -29,7 +28,6 @@ backtest:
   top_per_family: 2
   exit_contract: NEXT_OPEN_TO_HORIZON_CLOSE
   intrabar_stop_take_profit: false
-
 promotion:
   minimum_selected_folds: 2
   minimum_positive_test_fold_ratio: 0.75
@@ -40,3 +38,4 @@ promotion:
   minimum_median_profit_factor: 1.0
   cross_engine_validation_required: true
   dynamic_universe_generalization_required: true
+  minimum_evaluated_test_folds: 2

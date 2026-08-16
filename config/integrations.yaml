@@ -199,3 +199,122 @@ integrations:
     upgrade:
       strategy: isolated_candidate
       repository: https://github.com/shiyu-coder/Kronos.git
+  lean_reference:
+    enabled: true
+    kind: isolated_python
+    python: ${REFERENCE_FEDERATION_PYTHON:-.venv/bin/python}
+    worker: scripts/workers/reference_federation_worker.py
+    repo: references/Lean
+    distributions: []
+    imports: []
+    capabilities:
+    - health
+    - catalog
+    - role_manifest
+    timeout_seconds: 120
+    required: false
+    upgrade:
+      strategy: source_safe_reference
+      repository: https://github.com/QuantConnect/Lean.git
+  optuna_reference:
+    enabled: true
+    kind: isolated_python
+    python: ${REFERENCE_FEDERATION_PYTHON:-.venv/bin/python}
+    worker: scripts/workers/reference_federation_worker.py
+    repo: references/optuna
+    distributions: []
+    imports: []
+    capabilities:
+    - health
+    - catalog
+    - role_manifest
+    timeout_seconds: 120
+    required: false
+    upgrade:
+      strategy: source_safe_reference
+      repository: https://github.com/optuna/optuna.git
+  pybroker_reference:
+    enabled: true
+    kind: isolated_python
+    python: ${REFERENCE_FEDERATION_PYTHON:-.venv/bin/python}
+    worker: scripts/workers/reference_federation_worker.py
+    repo: references/pybroker
+    distributions: []
+    imports: []
+    capabilities:
+    - health
+    - catalog
+    - role_manifest
+    timeout_seconds: 120
+    required: false
+    upgrade:
+      strategy: source_safe_reference
+      repository: https://github.com/edtechre/pybroker.git
+  skfolio_reference:
+    enabled: true
+    kind: isolated_python
+    python: ${REFERENCE_FEDERATION_PYTHON:-.venv/bin/python}
+    worker: scripts/workers/reference_federation_worker.py
+    repo: references/skfolio
+    distributions: []
+    imports: []
+    capabilities:
+    - health
+    - catalog
+    - role_manifest
+    timeout_seconds: 120
+    required: false
+    upgrade:
+      strategy: source_safe_reference
+      repository: https://github.com/skfolio/skfolio.git
+  sb3_contrib_reference:
+    enabled: true
+    kind: isolated_python
+    python: ${REFERENCE_FEDERATION_PYTHON:-.venv/bin/python}
+    worker: scripts/workers/reference_federation_worker.py
+    repo: references/stable-baselines3-contrib
+    distributions: []
+    imports: []
+    capabilities:
+    - health
+    - catalog
+    - role_manifest
+    timeout_seconds: 120
+    required: false
+    upgrade:
+      strategy: source_safe_reference
+      repository: https://github.com/Stable-Baselines-Team/stable-baselines3-contrib.git
+  vectorbt_reference:
+    enabled: true
+    kind: isolated_python
+    python: ${REFERENCE_FEDERATION_PYTHON:-.venv/bin/python}
+    worker: scripts/workers/reference_federation_worker.py
+    repo: references/vectorbt
+    distributions: []
+    imports: []
+    capabilities:
+    - health
+    - catalog
+    - role_manifest
+    timeout_seconds: 120
+    required: false
+    upgrade:
+      strategy: source_safe_reference
+      repository: https://github.com/polakowo/vectorbt.git
+  vnpy_ib_reference:
+    enabled: true
+    kind: isolated_python
+    python: ${REFERENCE_FEDERATION_PYTHON:-.venv/bin/python}
+    worker: scripts/workers/reference_federation_worker.py
+    repo: references/vnpy_ib
+    distributions: []
+    imports: []
+    capabilities:
+    - health
+    - catalog
+    - role_manifest
+    timeout_seconds: 120
+    required: false
+    upgrade:
+      strategy: source_safe_reference
+      repository: https://github.com/vnpy/vnpy_ib.git

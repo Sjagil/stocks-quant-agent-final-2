@@ -1,0 +1,25 @@
+schema: active_swing_hydration_v2_15_3
+provider: EODHD
+start: "2020-10-01"
+required_timeframes: [15m, 1h, 2h, 4h, 1d, 1w]
+minimum_rows:
+  15m: 5000
+  1h: 4000
+  2h: 1500
+  4h: 700
+  1d: 500
+  1w: 80
+daily:
+  endpoint: /eod/{ticker}
+  period: d
+  order: a
+  adjustment: SPLIT_ADJUSTED_ONLY
+intraday:
+  source_interval: 5m
+  target_interval: 15m
+  chunk_days: 590
+  adjustment: SPLIT_ADJUSTED_ONLY
+authority:
+  automatic_live_promotion: false
+  broker_order_submission: false
+  execution_authority: NONE

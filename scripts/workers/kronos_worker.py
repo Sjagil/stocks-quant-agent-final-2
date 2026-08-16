@@ -286,6 +286,10 @@ def _forecast_series(request: dict, artifact_dir: Path) -> dict:
     stride = int(payload.get("stride", 8))
     batch_size = int(payload.get("batch_size", 8))
     sample_count = int(payload.get("sample_count", 1))
+    seed = int(payload.get("seed", 17))
+    np.random.seed(seed)
+    import torch
+    torch.manual_seed(seed)
     temperature = float(payload.get("temperature", 1.0))
     top_k = int(payload.get("top_k", 0))
     top_p = float(payload.get("top_p", 0.9))
@@ -378,6 +382,7 @@ def _forecast_series(request: dict, artifact_dir: Path) -> dict:
         "pred_len": pred_len,
         "stride": stride,
         "sample_count": sample_count,
+        "seed": seed,
         "point_in_time": True,
         "future_prices_used_as_model_input": False,
         "future_timestamps_only": True,

@@ -150,6 +150,7 @@ def main() -> int:
                 "sample_count": int(
                     integration_cfg["sample_count"]
                 ),
+                "seed": int(integration_cfg.get("seed", 17)),
                 "device": integration_cfg["device"],
             },
             timeout_seconds=3600,
@@ -426,7 +427,7 @@ def main() -> int:
                 usable["test_trades"].sum()
             )
 
-            survivor = (
+            quality_gate = (
                 selected_folds
                 >= int(
                     promotion_cfg[
@@ -470,6 +471,23 @@ def main() -> int:
                     ]
                 )
             )
+            enough_oos_folds = (
+                len(usable)
+                >= int(
+                    promotion_cfg.get(
+                        "minimum_evaluated_test_folds",
+                        2,
+                    )
+                )
+            )
+            survivor = bool(
+                quality_gate
+                and enough_oos_folds
+            )
+            insufficient_oos = bool(
+                quality_gate
+                and not enough_oos_folds
+            )
 
             hypothesis = hypothesis_map[
                 hypothesis_id
@@ -492,12 +510,20 @@ def main() -> int:
                     "status": (
                         "PROVISIONAL_SURVIVOR"
                         if survivor
-                        else "REJECT"
+                        else (
+                            "INSUFFICIENT_OOS_EVIDENCE"
+                            if insufficient_oos
+                            else "REJECT"
+                        )
                     ),
                     "promotion_stage": (
                         "VALIDATION_QUEUE"
                         if survivor
-                        else "REJECTED"
+                        else (
+                            "GENERALIZATION_EVIDENCE_QUEUE"
+                            if insufficient_oos
+                            else "REJECTED"
+                        )
                     ),
                     "validation_route": (
                         "KRONOS_CROSS_ENGINE_AND_DYNAMIC_GENERALIZATION_REQUIRED"
