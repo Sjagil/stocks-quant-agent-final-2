@@ -38,7 +38,11 @@ DEFAULT_FORMS = frozenset(
 
 def sec_user_agent() -> str:
     configured = os.environ.get("SEC_USER_AGENT", "").strip()
-    return configured or DEFAULT_SEC_USER_AGENT
+    if not configured:
+        raise ValueError("SEC_USER_AGENT_REQUIRED")
+    if "@" not in configured:
+        raise ValueError("SEC_USER_AGENT_CONTACT_EMAIL_REQUIRED")
+    return configured
 
 
 def _sec_get(
