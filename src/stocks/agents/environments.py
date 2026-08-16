@@ -9,6 +9,8 @@ from stocks.rl.config import EnvironmentConfig, RewardConfig
 from stocks.rl.features import build_rl_features
 from stocks.rl.rewards import calculate_reward
 
+from .feature_views import select_role_features
+
 try:
     import gymnasium as gym
     from gymnasium import spaces
@@ -21,11 +23,13 @@ def prepare_features(
     frame: pd.DataFrame,
     *,
     rolling_window: int = 64,
+    role: str = "DQN_TIMING",
 ) -> tuple[pd.DataFrame, pd.Series]:
-    features = build_rl_features(
+    bank = build_rl_features(
         frame,
-        rolling_window=rolling_window,
+        rolling_window=max(64, rolling_window),
     )
+    features = select_role_features(bank, role)
     joined = features.copy()
     joined["__close__"] = frame["close"].astype(float)
     joined = (
@@ -47,10 +51,12 @@ def latest_market_observation(
     window_size: int,
     position: float,
     drawdown: float,
+    role: str = "DQN_TIMING",
 ) -> np.ndarray:
     features, _ = prepare_features(
         frame,
         rolling_window=max(64, window_size),
+        role=role,
     )
     if len(features) < window_size:
         raise ValueError("not enough rows for latest agent observation")
@@ -135,11 +141,12 @@ if gym is not None:
             episode_length: int | None = None,
         ) -> None:
             super().__init__()
-            self.env_cfg = env_cfg or EnvironmentConfig()
+            self.env_cfg = env_cfg or EnvironmentConfig(window_size=32)
             self.reward_cfg = reward_cfg or RewardConfig()
             self.features, self.close = prepare_features(
                 frame,
                 rolling_window=max(64, self.env_cfg.window_size),
+                role="DQN_TIMING",
             )
             if len(self.features) <= self.env_cfg.window_size + 2:
                 raise ValueError("not enough rows for timing environment")
@@ -279,11 +286,12 @@ if gym is not None:
             episode_length: int | None = None,
         ) -> None:
             super().__init__()
-            self.env_cfg = env_cfg or EnvironmentConfig()
+            self.env_cfg = env_cfg or EnvironmentConfig(window_size=32)
             self.reward_cfg = reward_cfg or RewardConfig()
             self.features, self.close = prepare_features(
                 frame,
                 rolling_window=max(64, self.env_cfg.window_size),
+                role="SAC_SIZING",
             )
             if len(self.features) <= self.env_cfg.window_size + 2:
                 raise ValueError("not enough rows for sizing environment")
@@ -430,11 +438,12 @@ if gym is not None:
             episode_length: int | None = None,
         ) -> None:
             super().__init__()
-            self.env_cfg = env_cfg or EnvironmentConfig()
+            self.env_cfg = env_cfg or EnvironmentConfig(window_size=24)
             self.reward_cfg = reward_cfg or RewardConfig()
             self.features, self.close = prepare_features(
                 frame,
                 rolling_window=max(64, self.env_cfg.window_size),
+                role="RISK",
             )
             if len(self.features) <= self.env_cfg.window_size + 2:
                 raise ValueError("not enough rows for risk environment")

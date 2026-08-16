@@ -13,7 +13,7 @@ from .candle_fabric import frame_for_timeframe
 from .contracts import AgentVote
 from .ensemble import fuse_agent_votes
 from .environments import latest_market_observation
-from .nlp_context import read_nlp_context
+from .feature_fabric import build_current_context_snapshot
 
 
 def _as_bool(value: Any) -> bool:
@@ -55,7 +55,7 @@ def _validated_deployments(
     path = (
         root
         / "artifacts/research_runtime/"
-        "agent_validation_v2_13/registry.csv"
+        "agent_validation_v2_14/registry.csv"
     )
     if not path.is_file():
         return {}
@@ -363,7 +363,7 @@ def build_agent_shadow_decisions(
 
     if not forward_path.is_file():
         return pd.DataFrame(), {
-            "schema": "agent_shadow_pipeline_v2_13",
+            "schema": "agent_shadow_pipeline_v2_14",
             "rows": 0,
             "reason": "FORWARD_SIGNAL_STATE_MISSING",
             "execution_authority": "NONE",
@@ -400,9 +400,24 @@ def build_agent_shadow_decisions(
                 if current_quantity > 0
                 else 0.0
             )
-            observation = latest_market_observation(
+            dqn_observation = latest_market_observation(
                 frame,
-                window_size=env_cfg.window_size,
+                role="DQN_TIMING",
+                window_size=32,
+                position=current_exposure,
+                drawdown=0.0,
+            )
+            sac_observation = latest_market_observation(
+                frame,
+                role="SAC_SIZING",
+                window_size=32,
+                position=current_exposure,
+                drawdown=0.0,
+            )
+            risk_observation = latest_market_observation(
+                frame,
+                role="RISK",
+                window_size=24,
                 position=current_exposure,
                 drawdown=0.0,
             )
@@ -414,7 +429,9 @@ def build_agent_shadow_decisions(
                 f"{type(exc).__name__}:{exc}"
             )
             current_exposure = 0.0
-            observation = None
+            dqn_observation = None
+            sac_observation = None
+            risk_observation = None
 
         dqn_manifest = deployments.get(
             (symbol, "DQN")
@@ -426,21 +443,21 @@ def build_agent_shadow_decisions(
             (symbol, "MASKABLE_PPO")
         )
 
-        if observation is not None:
+        if dqn_observation is not None:
             timing_vote = _predict_dqn(
                 dqn_manifest,
-                observation,
+                dqn_observation,
                 symbol,
             )
             sizing_vote = _predict_sac(
                 sac_manifest,
-                observation,
+                sac_observation,
                 symbol,
                 current_exposure,
             )
             risk_vote = _predict_risk(
                 risk_manifest,
-                observation,
+                risk_observation,
                 symbol,
                 current_exposure,
             )
@@ -471,13 +488,14 @@ def build_agent_shadow_decisions(
                 reason=candle_error,
             )
 
-        nlp = read_nlp_context(
+        nlp = build_current_context_snapshot(
             root,
             symbol,
+            timeframe,
         )
         nlp_vote = AgentVote(
-            agent="NLP_CONTEXT",
-            role="NEWS_CONTEXT_MODIFIER",
+            agent="MULTIMODAL_CONTEXT",
+            role="MULTIMODAL_CONTEXT_MODIFIER",
             symbol=symbol,
             action="MODIFY_CONVICTION_ONLY",
             confidence=nlp.confidence,
@@ -567,7 +585,7 @@ def build_agent_shadow_decisions(
 
     result = pd.DataFrame(rows)
     audit = {
-        "schema": "agent_shadow_pipeline_v2_13",
+        "schema": "agent_shadow_pipeline_v2_14",
         "rows": int(len(result)),
         "broker_account_ready": bool(broker_ready),
         "validated_dqn_models": int(

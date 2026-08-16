@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 import json
 from dataclasses import asdict
 from pathlib import Path
@@ -50,7 +51,7 @@ def train_dqn(
 ) -> dict[str, Any]:
     from stable_baselines3 import DQN
 
-    env_cfg = env_cfg or EnvironmentConfig()
+    env_cfg = env_cfg or EnvironmentConfig(window_size=32)
     reward_cfg = reward_cfg or RewardConfig()
     env = DiscreteLongOnlyTimingEnv(
         frame,
@@ -63,7 +64,7 @@ def train_dqn(
         "MlpPolicy",
         env,
         learning_rate=1e-4,
-        buffer_size=max(10_000, int(timesteps) * 2),
+        buffer_size=40_000,
         learning_starts=min(500, max(100, int(timesteps) // 10)),
         batch_size=128,
         gamma=0.995,
@@ -72,8 +73,9 @@ def train_dqn(
         target_update_interval=500,
         exploration_fraction=0.20,
         exploration_final_eps=0.03,
+        policy_kwargs={"net_arch": [128, 128]},
         seed=int(seed),
-        verbose=0,
+        verbose=1,
     )
     model.learn(total_timesteps=int(timesteps))
 
@@ -83,7 +85,7 @@ def train_dqn(
     model.save(str(model_path))
 
     manifest = {
-        "schema": "agent_model_v2_13",
+        "schema": "agent_model_v2_14",
         "algorithm": "DQN",
         "role": "ENTRY_EXIT_TIMING",
         "seed": int(seed),
@@ -100,6 +102,12 @@ def train_dqn(
     }
     manifest_path = _write_manifest(directory, manifest)
     manifest["manifest"] = str(manifest_path)
+    try:
+        env.close()
+    except Exception:
+        pass
+    del model
+    gc.collect()
     return manifest
 
 
@@ -116,7 +124,7 @@ def train_sac(
 ) -> dict[str, Any]:
     from stable_baselines3 import SAC
 
-    env_cfg = env_cfg or EnvironmentConfig()
+    env_cfg = env_cfg or EnvironmentConfig(window_size=32)
     reward_cfg = reward_cfg or RewardConfig()
     env = ContinuousLongOnlySizingEnv(
         frame,
@@ -130,7 +138,7 @@ def train_sac(
         "MlpPolicy",
         env,
         learning_rate=3e-4,
-        buffer_size=max(25_000, int(timesteps) * 2),
+        buffer_size=50_000,
         learning_starts=min(1000, max(100, int(timesteps) // 10)),
         batch_size=256,
         tau=0.005,
@@ -138,8 +146,9 @@ def train_sac(
         train_freq=1,
         gradient_steps=1,
         ent_coef="auto",
+        policy_kwargs={"net_arch": [128, 128]},
         seed=int(seed),
-        verbose=0,
+        verbose=1,
     )
     model.learn(total_timesteps=int(timesteps))
 
@@ -149,7 +158,7 @@ def train_sac(
     model.save(str(model_path))
 
     manifest = {
-        "schema": "agent_model_v2_13",
+        "schema": "agent_model_v2_14",
         "algorithm": "SAC",
         "role": "CONTINUOUS_TARGET_EXPOSURE",
         "seed": int(seed),
@@ -166,6 +175,12 @@ def train_sac(
     }
     manifest_path = _write_manifest(directory, manifest)
     manifest["manifest"] = str(manifest_path)
+    try:
+        env.close()
+    except Exception:
+        pass
+    del model
+    gc.collect()
     return manifest
 
 
@@ -182,7 +197,7 @@ def train_maskable_ppo_risk(
 ) -> dict[str, Any]:
     from sb3_contrib import MaskablePPO
 
-    env_cfg = env_cfg or EnvironmentConfig()
+    env_cfg = env_cfg or EnvironmentConfig(window_size=24)
     reward_cfg = reward_cfg or RewardConfig()
     env = RiskReductionEnv(
         frame,
@@ -216,7 +231,7 @@ def train_maskable_ppo_risk(
     model.save(str(model_path))
 
     manifest = {
-        "schema": "agent_model_v2_13",
+        "schema": "agent_model_v2_14",
         "algorithm": "MASKABLE_PPO",
         "role": "POSITION_RISK_REDUCTION",
         "seed": int(seed),
@@ -235,6 +250,12 @@ def train_maskable_ppo_risk(
     }
     manifest_path = _write_manifest(directory, manifest)
     manifest["manifest"] = str(manifest_path)
+    try:
+        env.close()
+    except Exception:
+        pass
+    del model
+    gc.collect()
     return manifest
 
 

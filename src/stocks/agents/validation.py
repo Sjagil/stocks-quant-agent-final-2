@@ -76,7 +76,9 @@ def _environment(
 ):
     algorithm = algorithm.upper()
     kwargs = dict(
-        env_cfg=EnvironmentConfig(),
+        env_cfg=EnvironmentConfig(
+            window_size={"DQN": 32, "SAC": 32, "MASKABLE_PPO": 24}[algorithm]
+        ),
         reward_cfg=reward,
         random_start=False,
         episode_length=None,
@@ -263,7 +265,7 @@ def validate_algorithm(
     run_root = (
         root
         / "artifacts/research_runtime/"
-        "agent_validation_v2_13"
+        "agent_validation_v2_14"
         / symbol.upper()
         / timeframe
         / algorithm
@@ -426,7 +428,7 @@ def validate_algorithm(
         deployment_manifest = deployment["manifest"]
 
     payload = {
-        "schema": "agent_validation_v2_13",
+        "schema": "agent_validation_v2_14",
         "symbol": symbol.upper(),
         "timeframe": timeframe,
         "algorithm": algorithm,
@@ -463,7 +465,7 @@ def upsert_registry(
     output_dir = (
         root
         / "artifacts/research_runtime/"
-        "agent_validation_v2_13"
+        "agent_validation_v2_14"
     )
     output_dir.mkdir(parents=True, exist_ok=True)
     path = output_dir / "registry.csv"

@@ -99,6 +99,7 @@ integrations:
     - health
     - catalog
     - discovery_context
+    - market_context
     pass_env:
     - EODHD_API_KEY
     - EOD_API_KEY
@@ -180,3 +181,21 @@ integrations:
     - IBKR_EXECUTION_STATE_MAX_AGE_SECONDS
     timeout_seconds: 90
     required: false
+  kronos:
+    enabled: true
+    kind: isolated_python
+    python: ${KRONOS_PYTHON:-.venvs/kronos/bin/python}
+    worker: scripts/workers/kronos_worker.py
+    repo: references/Kronos
+    distributions: []
+    imports: []
+    capabilities:
+    - health
+    - catalog
+    - forecast
+    - forecast_series
+    timeout_seconds: 3600
+    required: false
+    upgrade:
+      strategy: isolated_candidate
+      repository: https://github.com/shiyu-coder/Kronos.git
