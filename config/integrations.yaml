@@ -150,6 +150,7 @@ integrations:
     capabilities:
     - health
     - catalog
+    - candle_validate
     timeout_seconds: 300
     upgrade:
       strategy: isolated_candidate
