@@ -56,9 +56,17 @@ def main() -> int:
     results = []
 
     for symbol in symbols:
-        frame = frame_for_timeframe(ROOT, symbol, args.timeframe)
+        frame = frame_for_timeframe(
+            ROOT,
+            symbol,
+            args.timeframe,
+        )
 
-        for algorithm in ("DQN", "SAC", "MASKABLE_PPO"):
+        for algorithm in (
+            "DQN",
+            "SAC",
+            "MASKABLE_PPO",
+        ):
             if algorithm not in algorithms:
                 continue
 
@@ -70,7 +78,9 @@ def main() -> int:
                 / algorithm
                 / f"seed_{int(args.seed)}"
             )
-            timesteps = int(timesteps_map[algorithm])
+            timesteps = int(
+                timesteps_map[algorithm]
+            )
 
             print(
                 "TRAIN",
@@ -83,26 +93,32 @@ def main() -> int:
                 args.seed,
             )
 
+            common = dict(
+                output_dir=output_dir,
+                timesteps=timesteps,
+                seed=args.seed,
+                training_mode=(
+                    "SMOKE"
+                    if args.smoke
+                    else "FULL"
+                ),
+                episode_length=256,
+            )
+
             if algorithm == "DQN":
                 result = train_dqn(
                     frame,
-                    output_dir=output_dir,
-                    timesteps=timesteps,
-                    seed=args.seed,
+                    **common,
                 )
             elif algorithm == "SAC":
                 result = train_sac(
                     frame,
-                    output_dir=output_dir,
-                    timesteps=timesteps,
-                    seed=args.seed,
+                    **common,
                 )
             else:
                 result = train_maskable_ppo_risk(
                     frame,
-                    output_dir=output_dir,
-                    timesteps=timesteps,
-                    seed=args.seed,
+                    **common,
                 )
 
             result["symbol"] = symbol
@@ -118,7 +134,7 @@ def main() -> int:
     (output / "last_run.json").write_text(
         json.dumps(
             {
-                "schema": "agent_training_v2_12",
+                "schema": "agent_training_v2_13_compatible",
                 "smoke": bool(args.smoke),
                 "models": results,
                 "money_control": False,
@@ -132,8 +148,12 @@ def main() -> int:
         encoding="utf-8",
     )
 
-    print("AGENT_TRAINING_V2_12 COMPLETE MODE", "SMOKE" if args.smoke else "FULL")
+    print(
+        "AGENT_TRAINING_V2_12 COMPLETE MODE",
+        "SMOKE" if args.smoke else "FULL",
+    )
     print("MODELS", len(results))
+    print("SMOKE_MODELS_HAVE_DECISION_AUTHORITY False")
     print("MONEY_CONTROL False")
     print("EXECUTION_AUTHORITY NONE")
     return 0

@@ -41,6 +41,22 @@ def fuse_agent_votes(
         )
         else float(current_exposure)
     )
+    sac_target = max(0.0, min(1.0, sac_target))
+
+    modifier = (
+        float(nlp_vote.modifier)
+        if nlp_vote.available
+        else 1.0
+    )
+    modifier = min(1.10, max(0.90, modifier))
+
+    # NLP modifies sizing BEFORE the risk specialist. The risk specialist is
+    # therefore the final learned exposure cap and cannot be undone by news.
+    nlp_adjusted_target = max(
+        0.0,
+        min(1.0, sac_target * modifier),
+    )
+
     risk_action = (
         risk_vote.action
         if risk_vote.available
@@ -50,26 +66,14 @@ def fuse_agent_votes(
     coordinated = coordinate_roles(
         current_exposure=current_exposure,
         timing_action=timing_action,
-        sizing_target=sac_target,
+        sizing_target=nlp_adjusted_target,
         risk_action=risk_action,
     )
 
     hard_gates_pass = not blockers
     target = coordinated.resulting_exposure
 
-    # Agents are forbidden from manufacturing a new entry around hard gates.
-    if current_exposure <= 1e-12 and not hard_gates_pass:
-        target = 0.0
-
-    # NLP is a bounded conviction/sizing modifier only; it never creates direction.
-    modifier = (
-        float(nlp_vote.modifier)
-        if nlp_vote.available
-        else 1.0
-    )
-    modifier = min(1.10, max(0.90, modifier))
-    target = min(1.0, max(0.0, target * modifier))
-
+    # Learned agents cannot manufacture a new entry around deterministic gates.
     if current_exposure <= 1e-12 and not hard_gates_pass:
         target = 0.0
 
@@ -77,7 +81,7 @@ def fuse_agent_votes(
         symbol=symbol.upper(),
         hard_gates_pass=hard_gates_pass,
         timing_action=timing_action,
-        sac_target_exposure=float(max(0.0, min(1.0, sac_target))),
+        sac_target_exposure=sac_target,
         risk_capped_exposure=float(coordinated.resulting_exposure),
         nlp_modifier=modifier,
         shadow_target_exposure=float(target),

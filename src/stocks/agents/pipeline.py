@@ -16,27 +16,68 @@ from .environments import latest_market_observation
 from .nlp_context import read_nlp_context
 
 
-def _latest_manifest(
-    root: Path,
-    symbol: str,
-    timeframe: str,
-    algorithm: str,
-) -> Path | None:
-    directory = (
-        root
-        / "artifacts/agent_models/v2_12"
-        / symbol.upper()
-        / timeframe
-        / algorithm.upper()
-    )
-    manifests = sorted(directory.glob("seed_*/manifest.json"))
-    return manifests[-1] if manifests else None
+def _as_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, (int, float)):
+        if pd.isna(value):
+            return False
+        return bool(value)
+    text = str(value).strip().lower()
+    if text in {"true", "1", "yes", "y"}:
+        return True
+    if text in {"false", "0", "no", "n", "", "nan", "none"}:
+        return False
+    raise ValueError(f"ambiguous boolean value: {value!r}")
 
 
-def _load_manifest(path: Path | None) -> dict[str, Any] | None:
-    if path is None:
+def _load_manifest(path: str | Path | None) -> dict[str, Any] | None:
+    if not path:
         return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    candidate = Path(str(path))
+    if not candidate.is_file():
+        return None
+    payload = json.loads(candidate.read_text(encoding="utf-8"))
+    if payload.get("research_status") != "SHADOW_VALIDATED":
+        return None
+    if str(payload.get("execution_authority", "NONE")).upper() != "NONE":
+        raise ValueError("agent deployment manifest grants forbidden authority")
+    return payload
+
+
+def _validated_deployments(
+    root: Path,
+    *,
+    timeframe: str,
+) -> dict[tuple[str, str], dict[str, Any]]:
+    path = (
+        root
+        / "artifacts/research_runtime/"
+        "agent_validation_v2_13/registry.csv"
+    )
+    if not path.is_file():
+        return {}
+
+    frame = pd.read_csv(path)
+    deployments: dict[tuple[str, str], dict[str, Any]] = {}
+
+    for row in frame.to_dict(orient="records"):
+        if str(row.get("timeframe")) != timeframe:
+            continue
+        if str(row.get("registry_status")) != "VALIDATED_AGENT_CHALLENGER":
+            continue
+        manifest = _load_manifest(row.get("deployment_manifest"))
+        if manifest is None:
+            continue
+        key = (
+            str(row["symbol"]).upper(),
+            str(row["algorithm"]).upper(),
+        )
+        deployments[key] = manifest
+
+    return deployments
 
 
 def _predict_dqn(
@@ -51,20 +92,25 @@ def _predict_dqn(
             symbol=symbol,
             action="HOLD",
             available=False,
-            reason="DQN_MODEL_NOT_TRAINED",
+            reason="VALIDATED_DQN_DEPLOYMENT_MISSING",
         )
 
     try:
         from stable_baselines3 import DQN
 
         model = DQN.load(manifest["model_path"])
-        action, _ = model.predict(observation, deterministic=True)
+        action, _ = model.predict(
+            observation,
+            deterministic=True,
+        )
         mapping = {
             0: "HOLD",
             1: "ENTER_LONG",
             2: "EXIT_TO_CASH",
         }
-        text = mapping[int(np.asarray(action).reshape(-1)[0])]
+        text = mapping[
+            int(np.asarray(action).reshape(-1)[0])
+        ]
         return AgentVote(
             agent="DQN_TIMING",
             role="ENTRY_EXIT_TIMING",
@@ -98,16 +144,23 @@ def _predict_sac(
             action="KEEP_CURRENT",
             target_exposure=float(current_exposure),
             available=False,
-            reason="SAC_MODEL_NOT_TRAINED",
+            reason="VALIDATED_SAC_DEPLOYMENT_MISSING",
         )
 
     try:
         from stable_baselines3 import SAC
 
         model = SAC.load(manifest["model_path"])
-        action, _ = model.predict(observation, deterministic=True)
+        action, _ = model.predict(
+            observation,
+            deterministic=True,
+        )
         target = float(
-            np.clip(np.asarray(action).reshape(-1)[0], 0.0, 1.0)
+            np.clip(
+                np.asarray(action).reshape(-1)[0],
+                0.0,
+                1.0,
+            )
         )
         return AgentVote(
             agent="SAC_SIZING",
@@ -142,9 +195,9 @@ def _predict_risk(
             role="POSITION_RISK_REDUCTION",
             symbol=symbol,
             action="KEEP",
-            confidence=1.0,
-            available=True,
-            reason="NO_EXISTING_POSITION_TO_REDUCE",
+            confidence=0.0,
+            available=False,
+            reason="RISK_AGENT_NOT_APPLICABLE_WHILE_FLAT",
         )
 
     if not manifest:
@@ -154,21 +207,30 @@ def _predict_risk(
             symbol=symbol,
             action="KEEP",
             available=False,
-            reason="RISK_MODEL_NOT_TRAINED",
+            reason="VALIDATED_RISK_DEPLOYMENT_MISSING",
         )
 
     try:
         from sb3_contrib import MaskablePPO
 
         model = MaskablePPO.load(manifest["model_path"])
-        action, _ = model.predict(observation, deterministic=True)
+        action, _ = model.predict(
+            observation,
+            deterministic=True,
+            action_masks=np.array(
+                [True, True, True, True],
+                dtype=bool,
+            ),
+        )
         mapping = {
             0: "KEEP",
             1: "CUT_25",
             2: "CUT_50",
             3: "FLAT",
         }
-        text = mapping[int(np.asarray(action).reshape(-1)[0])]
+        text = mapping[
+            int(np.asarray(action).reshape(-1)[0])
+        ]
         return AgentVote(
             agent="MASKABLE_PPO_RISK",
             role="POSITION_RISK_REDUCTION",
@@ -188,7 +250,9 @@ def _predict_risk(
         )
 
 
-def _broker_state(root: Path) -> tuple[bool, dict[str, float]]:
+def _broker_state(
+    root: Path,
+) -> tuple[bool, dict[str, float]]:
     path = (
         root
         / "artifacts/research_runtime/"
@@ -201,27 +265,44 @@ def _broker_state(root: Path) -> tuple[bool, dict[str, float]]:
     economic = payload.get("economic_account_state") or {}
     ready = bool(
         payload.get("double_snapshot_stable")
-        and economic.get("execution_status") == "EXECUTION_ACCOUNT_READY"
+        and economic.get("execution_status")
+        == "EXECUTION_ACCOUNT_READY"
         and int(payload.get("broker_write_calls", 0)) == 0
     )
 
     positions: dict[str, float] = {}
-    for row in (
+    raw_positions = (
         ((payload.get("snapshot") or {}).get("positions") or {})
         .get("positions", [])
-    ):
-        symbol = str(row.get("symbol") or "").upper()
+    )
+
+    for row in raw_positions:
+        symbol = str(
+            row.get("symbol")
+            or row.get("local_symbol")
+            or ""
+        ).upper()
+
+        quantity_value = (
+            row.get("position_quantity")
+            if "position_quantity" in row
+            else row.get("position", row.get("quantity", 0.0))
+        )
+
         try:
-            quantity = float(row.get("position_quantity") or 0.0)
+            quantity = float(quantity_value or 0.0)
         except (TypeError, ValueError):
             quantity = 0.0
+
         if symbol:
             positions[symbol] = quantity
 
     return ready, positions
 
 
-def _shariah_map(root: Path) -> dict[str, bool]:
+def _shariah_map(
+    root: Path,
+) -> dict[str, bool]:
     path = (
         root
         / "artifacts/research_runtime/"
@@ -229,14 +310,22 @@ def _shariah_map(root: Path) -> dict[str, bool]:
     )
     if not path.is_file():
         return {}
+
     frame = pd.read_csv(path)
-    return {
-        str(row["symbol"]).upper(): bool(row.get("trade_eligible", False))
-        for row in frame.to_dict(orient="records")
-    }
+    output = {}
+
+    for row in frame.to_dict(orient="records"):
+        symbol = str(row["symbol"]).upper()
+        output[symbol] = _as_bool(
+            row.get("trade_eligible", False)
+        )
+
+    return output
 
 
-def _broadly_validated_hypotheses(root: Path) -> set[str]:
+def _broadly_validated_hypotheses(
+    root: Path,
+) -> set[str]:
     path = (
         root
         / "artifacts/research_runtime/"
@@ -248,7 +337,6 @@ def _broadly_validated_hypotheses(root: Path) -> set[str]:
     frame = pd.read_csv(path)
     if frame.empty or "hypothesis_id" not in frame.columns:
         return set()
-
     if "roster_status" not in frame.columns:
         return set()
 
@@ -256,7 +344,9 @@ def _broadly_validated_hypotheses(root: Path) -> set[str]:
         frame["roster_status"].astype(str)
         == "BROADLY_VALIDATED_FINALIST"
     ]
-    return set(selected["hypothesis_id"].astype(str))
+    return set(
+        selected["hypothesis_id"].astype(str)
+    )
 
 
 def build_agent_shadow_decisions(
@@ -270,9 +360,10 @@ def build_agent_shadow_decisions(
         / "artifacts/research_runtime/"
         "forward_signal_state/signals.csv"
     )
+
     if not forward_path.is_file():
         return pd.DataFrame(), {
-            "schema": "agent_shadow_pipeline_v2_12",
+            "schema": "agent_shadow_pipeline_v2_13",
             "rows": 0,
             "reason": "FORWARD_SIGNAL_STATE_MISSING",
             "execution_authority": "NONE",
@@ -281,7 +372,13 @@ def build_agent_shadow_decisions(
     forward = pd.read_csv(forward_path)
     broker_ready, positions = _broker_state(root)
     shariah = _shariah_map(root)
-    validated_hypotheses = _broadly_validated_hypotheses(root)
+    validated_hypotheses = (
+        _broadly_validated_hypotheses(root)
+    )
+    deployments = _validated_deployments(
+        root,
+        timeframe=timeframe,
+    )
 
     rows: list[dict[str, Any]] = []
     env_cfg = EnvironmentConfig()
@@ -290,9 +387,19 @@ def build_agent_shadow_decisions(
         symbol = str(row["symbol"]).upper()
 
         try:
-            frame = frame_for_timeframe(root, symbol, timeframe)
-            current_quantity = float(positions.get(symbol, 0.0))
-            current_exposure = 1.0 if current_quantity > 0 else 0.0
+            frame = frame_for_timeframe(
+                root,
+                symbol,
+                timeframe,
+            )
+            current_quantity = float(
+                positions.get(symbol, 0.0)
+            )
+            current_exposure = (
+                1.0
+                if current_quantity > 0
+                else 0.0
+            )
             observation = latest_market_observation(
                 frame,
                 window_size=env_cfg.window_size,
@@ -303,18 +410,20 @@ def build_agent_shadow_decisions(
             candle_error = None
         except Exception as exc:
             candle_ready = False
-            candle_error = f"{type(exc).__name__}:{exc}"
+            candle_error = (
+                f"{type(exc).__name__}:{exc}"
+            )
             current_exposure = 0.0
             observation = None
 
-        dqn_manifest = _load_manifest(
-            _latest_manifest(root, symbol, timeframe, "DQN")
+        dqn_manifest = deployments.get(
+            (symbol, "DQN")
         )
-        sac_manifest = _load_manifest(
-            _latest_manifest(root, symbol, timeframe, "SAC")
+        sac_manifest = deployments.get(
+            (symbol, "SAC")
         )
-        risk_manifest = _load_manifest(
-            _latest_manifest(root, symbol, timeframe, "MASKABLE_PPO")
+        risk_manifest = deployments.get(
+            (symbol, "MASKABLE_PPO")
         )
 
         if observation is not None:
@@ -362,7 +471,10 @@ def build_agent_shadow_decisions(
                 reason=candle_error,
             )
 
-        nlp = read_nlp_context(root, symbol)
+        nlp = read_nlp_context(
+            root,
+            symbol,
+        )
         nlp_vote = AgentVote(
             agent="NLP_CONTEXT",
             role="NEWS_CONTEXT_MODIFIER",
@@ -374,16 +486,23 @@ def build_agent_shadow_decisions(
             reason=nlp.source,
         )
 
-        fresh = bool(row.get("new_entry_ready", False))
-        hypothesis_id = str(row.get("hypothesis_id") or "")
+        fresh = _as_bool(
+            row.get("new_entry_ready", False)
+        )
+        hypothesis_id = str(
+            row.get("hypothesis_id") or ""
+        )
         validated_strategy = (
-            hypothesis_id in validated_hypotheses
+            hypothesis_id
+            in validated_hypotheses
         )
 
         envelope = fuse_agent_votes(
             symbol=symbol,
             fresh_validated_entry=fresh,
-            shariah_verified=bool(shariah.get(symbol, False)),
+            shariah_verified=bool(
+                shariah.get(symbol, False)
+            ),
             broker_account_ready=broker_ready,
             validated_strategy=validated_strategy,
             current_exposure=current_exposure,
@@ -402,21 +521,43 @@ def build_agent_shadow_decisions(
                 "timeframe": timeframe,
                 "candle_ready": candle_ready,
                 "broker_account_ready": broker_ready,
-                "shariah_verified": bool(shariah.get(symbol, False)),
+                "shariah_verified": bool(
+                    shariah.get(symbol, False)
+                ),
                 "fresh_validated_entry": fresh,
                 "current_exposure": current_exposure,
+                "dqn_model_validated": (
+                    dqn_manifest is not None
+                ),
                 "dqn_action": timing_vote.action,
-                "dqn_available": timing_vote.available,
-                "sac_target_exposure": envelope.sac_target_exposure,
-                "sac_available": sizing_vote.available,
+                "dqn_vote_available": timing_vote.available,
+                "sac_model_validated": (
+                    sac_manifest is not None
+                ),
+                "sac_target_exposure": (
+                    envelope.sac_target_exposure
+                ),
+                "sac_vote_available": sizing_vote.available,
+                "risk_model_validated": (
+                    risk_manifest is not None
+                ),
+                "risk_applicable": (
+                    current_exposure > 1e-12
+                ),
                 "risk_action": risk_vote.action,
-                "risk_available": risk_vote.available,
+                "risk_vote_available": risk_vote.available,
                 "nlp_sentiment": nlp.sentiment,
                 "nlp_confidence": nlp.confidence,
                 "nlp_modifier": nlp.modifier,
-                "shadow_target_exposure": envelope.shadow_target_exposure,
-                "hard_gates_pass": envelope.hard_gates_pass,
-                "blockers": "|".join(envelope.blockers),
+                "shadow_target_exposure": (
+                    envelope.shadow_target_exposure
+                ),
+                "hard_gates_pass": (
+                    envelope.hard_gates_pass
+                ),
+                "blockers": "|".join(
+                    envelope.blockers
+                ),
                 "money_control": False,
                 "broker_calls": 0,
                 "order_calls": 0,
@@ -424,21 +565,36 @@ def build_agent_shadow_decisions(
             }
         )
 
-    frame = pd.DataFrame(rows)
+    result = pd.DataFrame(rows)
     audit = {
-        "schema": "agent_shadow_pipeline_v2_12",
-        "rows": int(len(frame)),
+        "schema": "agent_shadow_pipeline_v2_13",
+        "rows": int(len(result)),
         "broker_account_ready": bool(broker_ready),
-        "trained_dqn_votes": int(frame["dqn_available"].sum()) if not frame.empty else 0,
-        "trained_sac_votes": int(frame["sac_available"].sum()) if not frame.empty else 0,
-        "trained_risk_votes": int(frame["risk_available"].sum()) if not frame.empty else 0,
-        "hard_gate_passes": int(frame["hard_gates_pass"].sum()) if not frame.empty else 0,
+        "validated_dqn_models": int(
+            result["dqn_model_validated"].sum()
+        ) if not result.empty else 0,
+        "validated_sac_models": int(
+            result["sac_model_validated"].sum()
+        ) if not result.empty else 0,
+        "validated_risk_models": int(
+            result["risk_model_validated"].sum()
+        ) if not result.empty else 0,
+        "risk_applicable_rows": int(
+            result["risk_applicable"].sum()
+        ) if not result.empty else 0,
+        "hard_gate_passes": int(
+            result["hard_gates_pass"].sum()
+        ) if not result.empty else 0,
         "positive_shadow_targets": int(
-            (frame["shadow_target_exposure"] > 0).sum()
-        ) if not frame.empty else 0,
+            (
+                result["shadow_target_exposure"]
+                > 0
+            ).sum()
+        ) if not result.empty else 0,
+        "smoke_models_accepted": 0,
         "money_control": False,
         "broker_calls": 0,
         "order_calls": 0,
         "execution_authority": "NONE",
     }
-    return frame, audit
+    return result, audit

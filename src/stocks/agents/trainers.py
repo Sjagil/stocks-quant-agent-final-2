@@ -6,9 +6,12 @@ from pathlib import Path
 from typing import Any
 
 from stocks.rl.config import EnvironmentConfig, RewardConfig
-from stocks.rl.environment import LongOnlySwingEnv
 
-from .environments import DiscreteLongOnlyTimingEnv, RiskReductionEnv
+from .environments import (
+    ContinuousLongOnlySizingEnv,
+    DiscreteLongOnlyTimingEnv,
+    RiskReductionEnv,
+)
 
 
 def _write_manifest(
@@ -23,6 +26,17 @@ def _write_manifest(
     return path
 
 
+def _status(training_mode: str) -> str:
+    mode = str(training_mode).upper()
+    if mode == "SMOKE":
+        return "SMOKE_ONLY"
+    if mode in {"VALIDATION_FOLD", "FULL"}:
+        return "TRAINED_UNVALIDATED"
+    if mode == "DEPLOYMENT":
+        return "SHADOW_VALIDATED"
+    raise ValueError(f"unsupported training_mode: {training_mode}")
+
+
 def train_dqn(
     frame,
     *,
@@ -31,6 +45,8 @@ def train_dqn(
     seed: int,
     env_cfg: EnvironmentConfig | None = None,
     reward_cfg: RewardConfig | None = None,
+    training_mode: str = "FULL",
+    episode_length: int | None = 256,
 ) -> dict[str, Any]:
     from stable_baselines3 import DQN
 
@@ -40,6 +56,8 @@ def train_dqn(
         frame,
         env_cfg=env_cfg,
         reward_cfg=reward_cfg,
+        random_start=True,
+        episode_length=episode_length,
     )
     model = DQN(
         "MlpPolicy",
@@ -65,11 +83,13 @@ def train_dqn(
     model.save(str(model_path))
 
     manifest = {
-        "schema": "agent_model_v2_12",
+        "schema": "agent_model_v2_13",
         "algorithm": "DQN",
         "role": "ENTRY_EXIT_TIMING",
         "seed": int(seed),
         "timesteps": int(timesteps),
+        "training_mode": str(training_mode).upper(),
+        "research_status": _status(training_mode),
         "environment": asdict(env_cfg),
         "reward": asdict(reward_cfg),
         "action_semantics": ["HOLD", "ENTER_LONG", "EXIT_TO_CASH"],
@@ -91,20 +111,19 @@ def train_sac(
     seed: int,
     env_cfg: EnvironmentConfig | None = None,
     reward_cfg: RewardConfig | None = None,
+    training_mode: str = "FULL",
+    episode_length: int | None = 256,
 ) -> dict[str, Any]:
     from stable_baselines3 import SAC
 
     env_cfg = env_cfg or EnvironmentConfig()
     reward_cfg = reward_cfg or RewardConfig()
-    features = frame.copy()
-
-    from stocks.rl.experiment import _prepare_dataset
-    feature_frame, close = _prepare_dataset(features)
-    env = LongOnlySwingEnv(
-        feature_frame,
-        close,
+    env = ContinuousLongOnlySizingEnv(
+        frame,
         env_cfg=env_cfg,
         reward_cfg=reward_cfg,
+        random_start=True,
+        episode_length=episode_length,
     )
 
     model = SAC(
@@ -130,11 +149,13 @@ def train_sac(
     model.save(str(model_path))
 
     manifest = {
-        "schema": "agent_model_v2_12",
+        "schema": "agent_model_v2_13",
         "algorithm": "SAC",
         "role": "CONTINUOUS_TARGET_EXPOSURE",
         "seed": int(seed),
         "timesteps": int(timesteps),
+        "training_mode": str(training_mode).upper(),
+        "research_status": _status(training_mode),
         "environment": asdict(env_cfg),
         "reward": asdict(reward_cfg),
         "target_exposure_range": [0.0, float(env_cfg.max_position)],
@@ -156,6 +177,8 @@ def train_maskable_ppo_risk(
     seed: int,
     env_cfg: EnvironmentConfig | None = None,
     reward_cfg: RewardConfig | None = None,
+    training_mode: str = "FULL",
+    episode_length: int | None = 256,
 ) -> dict[str, Any]:
     from sb3_contrib import MaskablePPO
 
@@ -165,6 +188,8 @@ def train_maskable_ppo_risk(
         frame,
         env_cfg=env_cfg,
         reward_cfg=reward_cfg,
+        random_start=True,
+        episode_length=episode_length,
     )
 
     n_steps = min(512, max(64, int(timesteps) // 4))
@@ -191,11 +216,13 @@ def train_maskable_ppo_risk(
     model.save(str(model_path))
 
     manifest = {
-        "schema": "agent_model_v2_12",
+        "schema": "agent_model_v2_13",
         "algorithm": "MASKABLE_PPO",
         "role": "POSITION_RISK_REDUCTION",
         "seed": int(seed),
         "timesteps": int(timesteps),
+        "training_mode": str(training_mode).upper(),
+        "research_status": _status(training_mode),
         "environment": asdict(env_cfg),
         "reward": asdict(reward_cfg),
         "actions": ["KEEP", "CUT_25", "CUT_50", "FLAT"],
@@ -209,3 +236,49 @@ def train_maskable_ppo_risk(
     manifest_path = _write_manifest(directory, manifest)
     manifest["manifest"] = str(manifest_path)
     return manifest
+
+
+def train_agent(
+    algorithm: str,
+    frame,
+    *,
+    output_dir: str | Path,
+    timesteps: int,
+    seed: int,
+    reward_cfg: RewardConfig | None = None,
+    training_mode: str = "FULL",
+    episode_length: int | None = 256,
+) -> dict[str, Any]:
+    algorithm = algorithm.upper()
+    kwargs = dict(
+        output_dir=output_dir,
+        timesteps=int(timesteps),
+        seed=int(seed),
+        reward_cfg=reward_cfg,
+        training_mode=training_mode,
+        episode_length=episode_length,
+    )
+    if algorithm == "DQN":
+        return train_dqn(frame, **kwargs)
+    if algorithm == "SAC":
+        return train_sac(frame, **kwargs)
+    if algorithm == "MASKABLE_PPO":
+        return train_maskable_ppo_risk(frame, **kwargs)
+    raise ValueError(f"unsupported algorithm: {algorithm}")
+
+
+def load_agent_model(
+    algorithm: str,
+    model_path: str | Path,
+):
+    algorithm = algorithm.upper()
+    if algorithm == "DQN":
+        from stable_baselines3 import DQN
+        return DQN.load(str(model_path))
+    if algorithm == "SAC":
+        from stable_baselines3 import SAC
+        return SAC.load(str(model_path))
+    if algorithm == "MASKABLE_PPO":
+        from sb3_contrib import MaskablePPO
+        return MaskablePPO.load(str(model_path))
+    raise ValueError(f"unsupported algorithm: {algorithm}")
