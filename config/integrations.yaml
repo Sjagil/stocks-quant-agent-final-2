@@ -1,137 +1,320 @@
 schema_version: 1
-protocol_version: "1.0"
+protocol_version: '1.0'
 artifact_root: artifacts/integrations
 defaults:
   timeout_seconds: 120
   required: false
   inherit_env:
-    - HOME
-    - PATH
-    - TMPDIR
-    - LANG
-    - LC_ALL
-    - TZ
-    - SSL_CERT_FILE
-    - SSL_CERT_DIR
-    - REQUESTS_CA_BUNDLE
-    - CURL_CA_BUNDLE
-    - HTTP_PROXY
-    - HTTPS_PROXY
-    - NO_PROXY
-    - DYLD_LIBRARY_PATH
-    - DYLD_FALLBACK_LIBRARY_PATH
-    - SYSTEMROOT
-    - WINDIR
-    - COMSPEC
-    - PATHEXT
-    - TEMP
-    - TMP
+  - HOME
+  - PATH
+  - TMPDIR
+  - LANG
+  - LC_ALL
+  - TZ
+  - SSL_CERT_FILE
+  - SSL_CERT_DIR
+  - REQUESTS_CA_BUNDLE
+  - CURL_CA_BUNDLE
+  - HTTP_PROXY
+  - HTTPS_PROXY
+  - NO_PROXY
+  - DYLD_LIBRARY_PATH
+  - DYLD_FALLBACK_LIBRARY_PATH
+  - SYSTEMROOT
+  - WINDIR
+  - COMSPEC
+  - PATHEXT
+  - TEMP
+  - TMP
   pass_env: []
-
 integrations:
   vnpy:
     enabled: true
     kind: isolated_python
-    python: "${VNPY_PYTHON:-.venvs/vnpy/bin/python}"
+    python: ${VNPY_PYTHON:-.venvs/vnpy/bin/python}
     worker: scripts/workers/vnpy_worker.py
     repo: references/vnpy
-    distributions: [vnpy]
-    imports: [vnpy, vnpy.alpha]
-    capabilities: [health, catalog, alpha158]
+    distributions:
+    - vnpy
+    imports:
+    - vnpy
+    - vnpy.alpha
+    capabilities:
+    - health
+    - catalog
+    - alpha158
     timeout_seconds: 900
     upgrade:
       strategy: isolated_candidate
       package: vnpy
       repository: https://github.com/vnpy/vnpy.git
-
   qlib:
     enabled: true
     kind: isolated_python
-    python: "${QLIB_PYTHON:-.venvs/qlib/bin/python}"
+    python: ${QLIB_PYTHON:-.venvs/qlib/bin/python}
     worker: scripts/workers/qlib_worker.py
     repo: references/qlib
-    distributions: [pyqlib]
-    imports: [qlib]
-    capabilities: [health, catalog, fit_predict_lgbm, fit_predict_panel_lgbm]
+    distributions:
+    - pyqlib
+    imports:
+    - qlib
+    capabilities:
+    - health
+    - catalog
+    - fit_predict_lgbm
+    - fit_predict_panel_lgbm
     timeout_seconds: 900
     upgrade:
       strategy: isolated_candidate
       package: pyqlib
       repository: https://github.com/microsoft/qlib.git
-
-
   stocks_reference:
     enabled: true
     kind: isolated_python
-    python: "${STOCKS_REFERENCE_PYTHON:-.venvs/stocks/bin/python}"
+    python: ${STOCKS_REFERENCE_PYTHON:-.venvs/stocks/bin/python}
     worker: scripts/workers/stocks_reference_worker.py
     repo: references/Stocks
     distributions: []
     imports: []
-    capabilities: [health, catalog, news_link, screener_candidates, multitimeframe_collect]
+    capabilities:
+    - health
+    - catalog
+    - news_link
+    - screener_candidates
+    - multitimeframe_collect
     pass_env:
-      - EODHD_API_KEY
-      - EOD_API_KEY
-      - EODHISTORICALDATA_API_KEY
+    - EODHD_API_KEY
+    - EOD_API_KEY
+    - EODHISTORICALDATA_API_KEY
     timeout_seconds: 900
-
   stocks_context_reference:
     enabled: true
     kind: isolated_python
-    python: "${STOCKS_REFERENCE_PYTHON:-.venvs/stocks/bin/python}"
+    python: ${STOCKS_REFERENCE_PYTHON:-.venvs/stocks/bin/python}
     worker: scripts/workers/stocks_context_reference_worker.py
     repo: references/Stocks
     distributions: []
     imports: []
-    capabilities: [health, catalog, discovery_context]
+    capabilities:
+    - health
+    - catalog
+    - discovery_context
+    - market_context
     pass_env:
-      - EODHD_API_KEY
-      - EOD_API_KEY
-      - EODHISTORICALDATA_API_KEY
+    - EODHD_API_KEY
+    - EOD_API_KEY
+    - EODHISTORICALDATA_API_KEY
     timeout_seconds: 900
-
   finrl:
     enabled: true
     kind: isolated_python
-    python: "${FINRL_PYTHON:-.venvs/finrl/bin/python}"
+    python: ${FINRL_PYTHON:-.venvs/finrl/bin/python}
     worker: scripts/workers/finrl_worker.py
     repo: references/FinRL-Trading
     distributions: []
     imports: []
-    capabilities: [health, catalog]
+    capabilities:
+    - health
+    - catalog
     timeout_seconds: 300
     upgrade:
       strategy: isolated_candidate
       repository: https://github.com/AI4Finance-Foundation/FinRL-Trading.git
-
   moondev:
     enabled: true
     kind: isolated_python
-    python: "${MOONDEV_PYTHON:-.venvs/moondev/bin/python}"
+    python: ${MOONDEV_PYTHON:-.venvs/moondev/bin/python}
     worker: scripts/workers/moondev_worker.py
     repo: references/MoonDev-Trading-Ai-Agents
     distributions: []
     imports: []
-    capabilities: [health, catalog]
+    capabilities:
+    - health
+    - catalog
     pass_env:
-      - OPENAI_API_KEY
-      - ANTHROPIC_API_KEY
+    - OPENAI_API_KEY
+    - ANTHROPIC_API_KEY
     timeout_seconds: 300
     upgrade:
       strategy: isolated_candidate
       repository: https://github.com/CurvedLightGroup/MoonDev-Trading-Ai-Agents.git
-
   nautilus:
     enabled: true
     kind: isolated_python
-    python: "${NAUTILUS_PYTHON:-.venvs/nautilus/bin/python}"
+    python: ${NAUTILUS_PYTHON:-.venvs/nautilus/bin/python}
     worker: scripts/workers/nautilus_worker.py
     repo: references/nautilus_trader
-    distributions: [nautilus_trader]
-    imports: [nautilus_trader]
-    capabilities: [health, catalog]
+    distributions:
+    - nautilus_trader
+    imports:
+    - nautilus_trader
+    capabilities:
+    - health
+    - catalog
+    - candle_validate
     timeout_seconds: 300
     upgrade:
       strategy: isolated_candidate
       package: nautilus_trader
       repository: https://github.com/nautechsystems/nautilus_trader.git
+  stocks_ibkr_reference:
+    enabled: true
+    kind: isolated_python
+    python: ${STOCKS_REFERENCE_PYTHON:-.venvs/stocks/bin/python}
+    worker: scripts/workers/stocks_ibkr_reference_worker.py
+    repo: references/Stocks
+    distributions: []
+    imports: []
+    capabilities:
+    - health
+    - broker_snapshot_read_only
+    pass_env:
+    - IBKR_HOST
+    - IBKR_PORT
+    - IBKR_CLIENT_ID
+    - IBKR_RECON_CLIENT_ID
+    - IBKR_ACCOUNT_BASE_CURRENCY
+    - IBKR_ACCOUNT_FINGERPRINT_KEY
+    - IBKR_RECON_REQUEST_TIMEOUT_SECONDS
+    - IBKR_RECON_COMMISSION_GRACE_SECONDS
+    - IBKR_RECON_SNAPSHOT_STABILITY_DELAY_SECONDS
+    - IBKR_EXECUTION_STATE_MAX_AGE_SECONDS
+    timeout_seconds: 90
+    required: false
+  kronos:
+    enabled: true
+    kind: isolated_python
+    python: ${KRONOS_PYTHON:-.venvs/kronos/bin/python}
+    worker: scripts/workers/kronos_worker.py
+    repo: references/Kronos
+    distributions: []
+    imports: []
+    capabilities:
+    - health
+    - catalog
+    - forecast
+    - forecast_series
+    timeout_seconds: 3600
+    required: false
+    upgrade:
+      strategy: isolated_candidate
+      repository: https://github.com/shiyu-coder/Kronos.git
+  lean_reference:
+    enabled: true
+    kind: isolated_python
+    python: ${REFERENCE_FEDERATION_PYTHON:-.venv/bin/python}
+    worker: scripts/workers/reference_federation_worker.py
+    repo: references/Lean
+    distributions: []
+    imports: []
+    capabilities:
+    - health
+    - catalog
+    - role_manifest
+    timeout_seconds: 120
+    required: false
+    upgrade:
+      strategy: source_safe_reference
+      repository: https://github.com/QuantConnect/Lean.git
+  optuna_reference:
+    enabled: true
+    kind: isolated_python
+    python: ${REFERENCE_FEDERATION_PYTHON:-.venv/bin/python}
+    worker: scripts/workers/reference_federation_worker.py
+    repo: references/optuna
+    distributions: []
+    imports: []
+    capabilities:
+    - health
+    - catalog
+    - role_manifest
+    timeout_seconds: 120
+    required: false
+    upgrade:
+      strategy: source_safe_reference
+      repository: https://github.com/optuna/optuna.git
+  pybroker_reference:
+    enabled: true
+    kind: isolated_python
+    python: ${REFERENCE_FEDERATION_PYTHON:-.venv/bin/python}
+    worker: scripts/workers/reference_federation_worker.py
+    repo: references/pybroker
+    distributions: []
+    imports: []
+    capabilities:
+    - health
+    - catalog
+    - role_manifest
+    timeout_seconds: 120
+    required: false
+    upgrade:
+      strategy: source_safe_reference
+      repository: https://github.com/edtechre/pybroker.git
+  skfolio_reference:
+    enabled: true
+    kind: isolated_python
+    python: ${REFERENCE_FEDERATION_PYTHON:-.venv/bin/python}
+    worker: scripts/workers/reference_federation_worker.py
+    repo: references/skfolio
+    distributions: []
+    imports: []
+    capabilities:
+    - health
+    - catalog
+    - role_manifest
+    timeout_seconds: 120
+    required: false
+    upgrade:
+      strategy: source_safe_reference
+      repository: https://github.com/skfolio/skfolio.git
+  sb3_contrib_reference:
+    enabled: true
+    kind: isolated_python
+    python: ${REFERENCE_FEDERATION_PYTHON:-.venv/bin/python}
+    worker: scripts/workers/reference_federation_worker.py
+    repo: references/stable-baselines3-contrib
+    distributions: []
+    imports: []
+    capabilities:
+    - health
+    - catalog
+    - role_manifest
+    timeout_seconds: 120
+    required: false
+    upgrade:
+      strategy: source_safe_reference
+      repository: https://github.com/Stable-Baselines-Team/stable-baselines3-contrib.git
+  vectorbt_reference:
+    enabled: true
+    kind: isolated_python
+    python: ${REFERENCE_FEDERATION_PYTHON:-.venv/bin/python}
+    worker: scripts/workers/reference_federation_worker.py
+    repo: references/vectorbt
+    distributions: []
+    imports: []
+    capabilities:
+    - health
+    - catalog
+    - role_manifest
+    timeout_seconds: 120
+    required: false
+    upgrade:
+      strategy: source_safe_reference
+      repository: https://github.com/polakowo/vectorbt.git
+  vnpy_ib_reference:
+    enabled: true
+    kind: isolated_python
+    python: ${REFERENCE_FEDERATION_PYTHON:-.venv/bin/python}
+    worker: scripts/workers/reference_federation_worker.py
+    repo: references/vnpy_ib
+    distributions: []
+    imports: []
+    capabilities:
+    - health
+    - catalog
+    - role_manifest
+    timeout_seconds: 120
+    required: false
+    upgrade:
+      strategy: source_safe_reference
+      repository: https://github.com/vnpy/vnpy_ib.git

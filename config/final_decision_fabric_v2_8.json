@@ -1,0 +1,55 @@
+{
+  "schema": "final_decision_fabric_v2_8",
+  "execution_authority": "NONE",
+  "market_structure_promotion": {
+    "required_status": "15M_DYNAMIC_UNIVERSE_VALIDATED",
+    "minimum_eligible_symbols": 12,
+    "minimum_traded_symbols": 12,
+    "minimum_oos_trades": 500,
+    "minimum_positive_fold_ratio": 0.75,
+    "minimum_stress_positive_fold_ratio": 0.75,
+    "minimum_positive_symbol_ratio": 0.60,
+    "minimum_stress_positive_symbol_ratio": 0.50,
+    "maximum_symbol_trade_share": 0.35,
+    "require_positive_median_expectancy": true,
+    "require_positive_median_stress_expectancy": true
+  },
+  "shariah": {
+    "eodhd_first": true,
+    "sec_fallback": true,
+    "sec_allowed_forms": [
+      "10-Q",
+      "10-Q/A",
+      "10-K",
+      "10-K/A",
+      "20-F",
+      "20-F/A",
+      "40-F",
+      "40-F/A"
+    ],
+    "debt_to_market_cap_max": 0.30,
+    "cash_and_interest_securities_to_market_cap_max": 0.30,
+    "receivables_to_market_cap_max": 0.49,
+    "non_permissible_income_ratio_max": 0.05,
+    "financial_screen_alone_grants_live_eligibility": false,
+    "verified_attestation_required_for_live": true,
+    "maximum_attestation_age_days": 120
+  },
+  "forward_signal": {
+    "closed_bars_only": true,
+    "supported_next_open_strategies": [
+      "rsi_threshold_exit",
+      "obv_breakout"
+    ],
+    "active_replay_position_blocks_duplicate_entry": true,
+    "broker_flat_confirmation_required_for_execution": true
+  },
+  "canary": {
+    "quantity_mode": "WHOLE_SHARES",
+    "fractional_shares_allowed": false,
+    "fixed_euro_order_cap_enabled": false,
+    "maximum_order_eur": null,
+    "primary_sizing_authority": "RISK_AND_PORTFOLIO_WEIGHT",
+    "broker_submission_enabled_by_this_layer": false
+  }
+}

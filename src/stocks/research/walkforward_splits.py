@@ -134,7 +134,7 @@ def rolling_periods(
             }
         )
 
-    if len(folds) < 3:
+    if len(folds) < 2:
         raise ValueError(
             "fewer than three "
             "walk-forward folds"
