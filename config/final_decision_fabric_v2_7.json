@@ -1,0 +1,60 @@
+
+{
+  "schema": "final_decision_fabric_v2_7",
+  "execution_authority": "NONE",
+  "market_structure_15m_generalization": {
+    "minimum_symbols_available": 5,
+    "minimum_symbols_traded": 5,
+    "minimum_oos_trades": 40,
+    "minimum_positive_symbol_ratio": 0.60,
+    "minimum_positive_fold_ratio": 0.75,
+    "minimum_stress_positive_fold_ratio": 0.75,
+    "minimum_stress_positive_symbol_ratio": 0.50,
+    "maximum_symbol_trade_share": 0.35,
+    "require_positive_median_expectancy": true,
+    "require_positive_median_stress_expectancy": true,
+    "base_cost_bps_per_side": 3.0,
+    "stress_cost_bps_per_side": 10.0,
+    "minimum_fold_trades": 8,
+    "minimum_symbol_trades": 3,
+    "folds": 4,
+    "purge_bars": 42
+  },
+  "shariah": {
+    "methodology": "PROJECT_POLICY_V1_EXPLICIT_EXTERNAL_ATTESTATION_REQUIRED_FOR_LIVE",
+    "debt_to_market_cap_max": 0.30,
+    "cash_and_interest_securities_to_market_cap_max": 0.30,
+    "receivables_to_market_cap_max": 0.49,
+    "non_permissible_income_ratio_max": 0.05,
+    "financial_screen_alone_grants_live_eligibility": false,
+    "verified_attestation_required_for_live": true,
+    "maximum_attestation_age_days": 120
+  },
+  "forward_signal": {
+    "recent_entry_bars": 2,
+    "maximum_stale_bars": 8,
+    "closed_bars_only": true,
+    "forced_end_is_not_new_entry": true
+  },
+  "portfolio": {
+    "maximum_positions": 5,
+    "maximum_single_weight": 0.35,
+    "maximum_stock_weight": 0.85,
+    "maximum_etf_weight": 0.60,
+    "maximum_commodity_weight": 0.40,
+    "cash_floor": 0.03,
+    "minimum_conviction": 0.55,
+    "minimum_strategy_votes": 1
+  },
+  "canary": {
+    "quantity_mode": "WHOLE_SHARES",
+    "fractional_shares_allowed": false,
+    "minimum_execution_quantity": 1,
+    "maximum_execution_quantity": 100,
+    "fixed_euro_order_cap_enabled": false,
+    "maximum_order_eur": null,
+    "primary_sizing_authority": "RISK_AND_PORTFOLIO_WEIGHT",
+    "notional_cap_role": "DISABLED",
+    "broker_submission_enabled_by_this_layer": false
+  }
+}
