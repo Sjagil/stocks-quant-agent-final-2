@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import runpy
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -81,6 +82,25 @@ def test_lean_algorithm_is_execution_only_and_whole_share():
     assert "XENGINE_EXIT" in text
     assert "FillQuantity" in text
     assert "execution_authority" in text
+
+
+def test_lean_custom_data_uses_current_namespace(monkeypatch):
+    monkeypatch.syspath_prepend(
+        str(ROOT / "scripts/workers")
+    )
+    namespace = runpy.run_path(
+        str(
+            ROOT
+            / "scripts/workers/lean_worker_v2_17.py"
+        )
+    )
+
+    algorithm_source = namespace["ALGORITHM_SOURCE"]
+    assert "using QuantConnect.Data;" in algorithm_source
+    assert (
+        "using QuantConnect.Data.Subscription;"
+        not in algorithm_source
+    )
 
 
 def test_no_external_engine_receives_live_authority():
