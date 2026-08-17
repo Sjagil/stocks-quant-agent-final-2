@@ -51,6 +51,22 @@ def test_lean_worker_has_real_local_launcher_replay():
         "LOCAL_LAUNCHER_CUSTOM_BASEDATA"
         in text
     )
+    assert "QuantConnect.Algorithm.CSharp.csproj" in text
+    assert '"--no-restore"' in text
+    assert "lean_algorithm_source.cs" in text
+
+
+def test_lean_build_failure_reports_stdout_and_stderr():
+    text = (
+        ROOT
+        / "scripts/workers/lean_worker_v2_17.py"
+    ).read_text(encoding="utf-8")
+
+    assert "def _process_failure(" in text
+    assert '("STDOUT", completed.stdout)' in text
+    assert '("STDERR", completed.stderr)' in text
+    assert '"LEAN_BUILD_FAILED"' in text
+    assert '"NO_PROCESS_OUTPUT"' in text
 
 
 def test_lean_algorithm_is_execution_only_and_whole_share():

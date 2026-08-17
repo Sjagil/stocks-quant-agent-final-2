@@ -284,6 +284,31 @@ def _patch_json_value(
     return updated
 
 
+def _process_failure(
+    label: str,
+    completed: subprocess.CompletedProcess,
+    *,
+    limit: int = 12000,
+) -> RuntimeError:
+    sections = [
+        f"{label} (exit={completed.returncode})",
+    ]
+    for stream, value in (
+        ("STDOUT", completed.stdout),
+        ("STDERR", completed.stderr),
+    ):
+        output = str(value or "").strip()
+        if output:
+            sections.append(
+                f"{stream}:\n{output}"
+            )
+    if len(sections) == 1:
+        sections.append("NO_PROCESS_OUTPUT")
+    return RuntimeError(
+        "\n".join(sections)[-limit:]
+    )
+
+
 def _normalize_lean_fills(
     path: Path,
 ) -> pd.DataFrame:
@@ -499,6 +524,15 @@ def _replay(request: dict, artifact_dir: Path) -> dict:
         / "Algorithm.CSharp/"
         "CrossEngineReplayAlgorithmV2177.cs"
     )
+    algorithm_project = (
+        repo
+        / "Algorithm.CSharp/"
+        "QuantConnect.Algorithm.CSharp.csproj"
+    )
+    if not algorithm_project.is_file():
+        raise FileNotFoundError(
+            algorithm_project
+        )
     source_existed = source_file.exists()
     source_backup = (
         source_file.read_bytes()
@@ -522,6 +556,9 @@ def _replay(request: dict, artifact_dir: Path) -> dict:
 
     build_stdout = artifact_dir / "lean_build_stdout.txt"
     build_stderr = artifact_dir / "lean_build_stderr.txt"
+    algorithm_source = (
+        artifact_dir / "lean_algorithm_source.cs"
+    )
     run_stdout = artifact_dir / "lean_run_stdout.txt"
     run_stderr = artifact_dir / "lean_run_stderr.txt"
     raw_fills = artifact_dir / "lean_raw_fills.csv"
@@ -531,19 +568,20 @@ def _replay(request: dict, artifact_dir: Path) -> dict:
             ALGORITHM_SOURCE,
             encoding="utf-8",
         )
+        algorithm_source.write_text(
+            ALGORITHM_SOURCE,
+            encoding="utf-8",
+        )
 
         build = subprocess.run(
             [
                 dotnet,
                 "build",
-                str(
-                    repo
-                    / "Launcher/"
-                    "QuantConnect.Lean.Launcher.csproj"
-                ),
+                str(algorithm_project),
                 "-c",
                 "Release",
                 "--nologo",
+                "--no-restore",
             ],
             cwd=repo,
             capture_output=True,
@@ -559,9 +597,19 @@ def _replay(request: dict, artifact_dir: Path) -> dict:
             encoding="utf-8",
         )
         if build.returncode != 0:
-            raise RuntimeError(
-                "LEAN_BUILD_FAILED:"
-                + build.stderr[-4000:]
+            raise _process_failure(
+                "LEAN_BUILD_FAILED",
+                build,
+            )
+
+        algorithm_dll = (
+            algorithm_project.parent
+            / "bin/Release/"
+            "QuantConnect.Algorithm.CSharp.dll"
+        )
+        if not algorithm_dll.is_file():
+            raise FileNotFoundError(
+                algorithm_dll
             )
 
         if not runtime_config.exists():
@@ -594,15 +642,6 @@ def _replay(request: dict, artifact_dir: Path) -> dict:
             "algorithm-language",
             json.dumps("CSharp"),
         )
-        algorithm_dll = (
-            launcher_dir
-            / "QuantConnect.Algorithm.CSharp.dll"
-        )
-        if not algorithm_dll.is_file():
-            raise FileNotFoundError(
-                algorithm_dll
-            )
-
         config_text = _patch_json_value(
             config_text,
             "algorithm-location",
@@ -661,10 +700,9 @@ def _replay(request: dict, artifact_dir: Path) -> dict:
             encoding="utf-8",
         )
         if completed.returncode != 0:
-            raise RuntimeError(
-                "LEAN_LAUNCHER_FAILED:"
-                + completed.stdout[-3000:]
-                + completed.stderr[-3000:]
+            raise _process_failure(
+                "LEAN_LAUNCHER_FAILED",
+                completed,
             )
 
         normalized = _normalize_lean_fills(
@@ -698,6 +736,10 @@ def _replay(request: dict, artifact_dir: Path) -> dict:
                 "QuantConnect.Lean.Launcher",
             "algorithm_type":
                 "CrossEngineReplayAlgorithmV2177",
+            "build_target":
+                "QuantConnect.Algorithm.CSharp",
+            "restore_mode":
+                "NO_RESTORE_EXISTING_LOCAL_LEAN_BUILD",
             "symbols": len(symbols),
             "trades": int(len(normalized)),
             "whole_shares_only": True,
@@ -739,6 +781,10 @@ def _replay(request: dict, artifact_dir: Path) -> dict:
             ),
             artifact_ref(
                 build_stderr,
+                media_type="text/plain",
+            ),
+            artifact_ref(
+                algorithm_source,
                 media_type="text/plain",
             ),
             artifact_ref(
