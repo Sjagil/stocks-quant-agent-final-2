@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import signal
 import shutil
 import subprocess
 from pathlib import Path
@@ -34,6 +35,23 @@ LEAN_ALGORITHM_TYPE = (
 )
 LEAN_SPARSE_SLICE_POLICY = (
     "TRY_GET_VALUE_SKIP_MISSING_SYMBOLS"
+)
+LEAN_RESULT_HANDLER = (
+    "QuantConnect.Lean.Engine.Results."
+    "RegressionResultHandler"
+)
+LEAN_COMPLETION_MARKERS = (
+    "Loader.TryCreateILAlgorithm(): Loaded "
+    "CrossEngineReplayAlgorithmV2177",
+    "Synchronizer.GetEnumerator(): Exited thread.",
+    "AlgorithmManager.Run(): Firing On End Of Algorithm...",
+    "Engine.Run(): Exiting Algorithm Manager",
+    "Algorithm Id:(QuantConnect.Algorithm.CSharp."
+    "CrossEngineReplayAlgorithmV2177) completed in",
+    "Processing total of",
+)
+LEAN_RAW_FILLS_HEADER = (
+    "replay_symbol,timestamp,side,fill_price,quantity"
 )
 
 
@@ -380,6 +398,96 @@ def _patch_json_value(
             f"LEAN config key not found: {key}"
         )
     return updated
+
+
+def _ensure_json_value(
+    text: str,
+    key: str,
+    value_json: str,
+) -> str:
+    try:
+        return _patch_json_value(
+            text,
+            key,
+            value_json,
+        )
+    except ValueError:
+        pass
+
+    environment_line = re.compile(
+        r'^(?P<indent>[ \t]*)'
+        r'"environment"\s*:\s*"[^"]*"\s*,'
+        r'[^\n]*\n',
+        flags=re.MULTILINE,
+    )
+
+    def insert(match: re.Match) -> str:
+        return (
+            match.group(0)
+            + match.group("indent")
+            + f'"{key}": {value_json},\n'
+        )
+
+    updated, count = environment_line.subn(
+        insert,
+        text,
+        count=1,
+    )
+    if count != 1:
+        raise ValueError(
+            "LEAN config environment anchor missing"
+        )
+    return updated
+
+
+def _engine_completion_markers_present(
+    completed: subprocess.CompletedProcess,
+) -> bool:
+    stdout = str(completed.stdout or "")
+    return all(
+        marker in stdout
+        for marker in LEAN_COMPLETION_MARKERS
+    )
+
+
+def _completed_replay_after_sigkill(
+    completed: subprocess.CompletedProcess,
+    raw_fills: Path,
+) -> bool:
+    if completed.returncode != -signal.SIGKILL:
+        return False
+
+    stdout = str(completed.stdout or "")
+    stderr = str(completed.stderr or "").strip()
+    if stderr:
+        return False
+    if not _engine_completion_markers_present(
+        completed
+    ):
+        return False
+    if any(
+        marker in stdout
+        for marker in (
+            "Runtime Error:",
+            "ERROR::",
+            "Algorithm.Initialize() Error",
+        )
+    ):
+        return False
+    if not raw_fills.is_file():
+        return False
+
+    with raw_fills.open(
+        "r",
+        encoding="utf-8",
+    ) as handle:
+        header = handle.readline().strip()
+        first_fill = handle.readline().strip()
+
+    return (
+        header == LEAN_RAW_FILLS_HEADER
+        and bool(first_fill)
+    )
 
 
 def _process_failure(
@@ -755,6 +863,16 @@ def _replay(request: dict, artifact_dir: Path) -> dict:
             "force-exchange-always-open",
             "true",
         )
+        config_text = _patch_json_value(
+            config_text,
+            "result-handler",
+            json.dumps(LEAN_RESULT_HANDLER),
+        )
+        config_text = _ensure_json_value(
+            config_text,
+            "close-automatically",
+            "true",
+        )
         runtime_config.write_text(
             config_text,
             encoding="utf-8",
@@ -795,7 +913,22 @@ def _replay(request: dict, artifact_dir: Path) -> dict:
             completed.stderr,
             encoding="utf-8",
         )
-        if completed.returncode != 0:
+        engine_completion_markers = (
+            _engine_completion_markers_present(
+                completed
+            )
+        )
+        accepted_post_replay_sigkill = (
+            completed.returncode != 0
+            and _completed_replay_after_sigkill(
+                completed,
+                raw_fills,
+            )
+        )
+        if (
+            completed.returncode != 0
+            and not accepted_post_replay_sigkill
+        ):
             raise _process_failure(
                 "LEAN_LAUNCHER_FAILED",
                 completed,
@@ -830,6 +963,18 @@ def _replay(request: dict, artifact_dir: Path) -> dict:
             "signals_shifted_rows": 1,
             "runtime":
                 "QuantConnect.Lean.Launcher",
+            "result_handler":
+                LEAN_RESULT_HANDLER,
+            "close_automatically": True,
+            "launcher_exit_code":
+                int(completed.returncode),
+            "launcher_exit_disposition": (
+                "POST_REPLAY_SIGKILL_ACCEPTED"
+                if accepted_post_replay_sigkill
+                else "CLEAN_EXIT"
+            ),
+            "engine_completion_markers":
+                engine_completion_markers,
             "algorithm_type":
                 LEAN_ALGORITHM_TYPE,
             "sparse_slice_policy":

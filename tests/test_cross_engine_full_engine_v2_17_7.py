@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import runpy
+import signal
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -70,6 +72,134 @@ def test_lean_build_failure_reports_stdout_and_stderr():
     assert '("STDERR", completed.stderr)' in text
     assert '"LEAN_BUILD_FAILED"' in text
     assert '"NO_PROCESS_OUTPUT"' in text
+
+
+def test_lean_runtime_uses_noninteractive_regression_results():
+    text = (
+        ROOT
+        / "scripts/workers/lean_worker_v2_17.py"
+    ).read_text(encoding="utf-8")
+
+    assert "RegressionResultHandler" in text
+    assert '"close-automatically"' in text
+    assert '"POST_REPLAY_SIGKILL_ACCEPTED"' in text
+
+
+def test_lean_config_value_can_be_inserted_and_updated(
+    monkeypatch,
+):
+    monkeypatch.syspath_prepend(
+        str(ROOT / "scripts/workers")
+    )
+    namespace = runpy.run_path(
+        str(
+            ROOT
+            / "scripts/workers/lean_worker_v2_17.py"
+        )
+    )
+    ensure = namespace["_ensure_json_value"]
+    config = (
+        "{\n"
+        '  "environment": "backtesting",\n'
+        "}\n"
+    )
+
+    inserted = ensure(
+        config,
+        "close-automatically",
+        "true",
+    )
+    assert (
+        '  "close-automatically": true,'
+        in inserted
+    )
+
+    updated = ensure(
+        inserted,
+        "close-automatically",
+        "false",
+    )
+    assert updated.count(
+        '"close-automatically"'
+    ) == 1
+    assert (
+        '  "close-automatically": false,'
+        in updated
+    )
+
+
+def test_lean_accepts_sigkill_only_after_complete_replay(
+    monkeypatch,
+    tmp_path,
+):
+    monkeypatch.syspath_prepend(
+        str(ROOT / "scripts/workers")
+    )
+    namespace = runpy.run_path(
+        str(
+            ROOT
+            / "scripts/workers/lean_worker_v2_17.py"
+        )
+    )
+    raw_fills = tmp_path / "lean_raw_fills.csv"
+    raw_fills.write_text(
+        namespace["LEAN_RAW_FILLS_HEADER"]
+        + "\nCPER,2020-01-01T00:00:00Z,BUY,10,1\n",
+        encoding="utf-8",
+    )
+    completed = subprocess.CompletedProcess(
+        args=["dotnet"],
+        returncode=-signal.SIGKILL,
+        stdout="\n".join(
+            namespace["LEAN_COMPLETION_MARKERS"]
+        ),
+        stderr="",
+    )
+
+    assert namespace[
+        "_completed_replay_after_sigkill"
+    ](completed, raw_fills) is True
+
+
+@pytest.mark.parametrize(
+    ("stdout", "stderr"),
+    [
+        ("completed in", "ERROR:: killed"),
+        ("Runtime Error: bad", ""),
+        ("incomplete output", ""),
+    ],
+)
+def test_lean_rejects_unproven_sigkill(
+    monkeypatch,
+    tmp_path,
+    stdout,
+    stderr,
+):
+    monkeypatch.syspath_prepend(
+        str(ROOT / "scripts/workers")
+    )
+    namespace = runpy.run_path(
+        str(
+            ROOT
+            / "scripts/workers/lean_worker_v2_17.py"
+        )
+    )
+    raw_fills = tmp_path / "lean_raw_fills.csv"
+    raw_fills.write_text(
+        namespace["LEAN_RAW_FILLS_HEADER"]
+        + "\nCPER,2020-01-01T00:00:00Z,BUY,10,1\n",
+        encoding="utf-8",
+    )
+    completed = subprocess.CompletedProcess(
+        args=["dotnet"],
+        returncode=-signal.SIGKILL,
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert namespace[
+        "_completed_replay_after_sigkill"
+    ](completed, raw_fills) is False
 
 
 def test_lean_algorithm_is_execution_only_and_whole_share():
