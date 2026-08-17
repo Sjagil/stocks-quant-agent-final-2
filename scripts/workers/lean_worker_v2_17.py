@@ -32,6 +32,50 @@ LEAN_ALGORITHM_TYPE = (
     f"{LEAN_ALGORITHM_NAMESPACE}."
     f"{LEAN_ALGORITHM_CLASS}"
 )
+LEAN_SPARSE_SLICE_POLICY = (
+    "TRY_GET_VALUE_SKIP_MISSING_SYMBOLS"
+)
+
+
+def _replace_sparse_slice_access(source: str) -> str:
+    unsafe = (
+        "    public override void OnData(Slice data)\n"
+        "    {\n"
+        "        foreach (var pair in _names)\n"
+        "        {\n"
+        "            var point = "
+        "data.Get<CanonicalReplayPointV2177>(\n"
+        "                pair.Key);\n"
+        "            if (point == null)\n"
+        "            {\n"
+        "                continue;\n"
+        "            }\n"
+    )
+    safe = (
+        "    public override void OnData(Slice data)\n"
+        "    {\n"
+        "        var points =\n"
+        "            data.Get<"
+        "CanonicalReplayPointV2177>();\n\n"
+        "        foreach (var pair in _names)\n"
+        "        {\n"
+        "            if (!points.TryGetValue(\n"
+        "                pair.Key,\n"
+        "                out var point))\n"
+        "            {\n"
+        "                continue;\n"
+        "            }\n"
+    )
+    if source.count(unsafe) != 1:
+        raise ValueError(
+            "LEAN sparse Slice access marker "
+            "missing or ambiguous"
+        )
+    return source.replace(
+        unsafe,
+        safe,
+        1,
+    )
 
 
 def _prepare_algorithm_source(source: str) -> str:
@@ -54,6 +98,10 @@ def _prepare_algorithm_source(source: str) -> str:
         raise ValueError(
             "LEAN algorithm namespace marker missing"
         )
+
+    source = _replace_sparse_slice_access(
+        source
+    )
 
     return (
         source.replace(
@@ -784,6 +832,8 @@ def _replay(request: dict, artifact_dir: Path) -> dict:
                 "QuantConnect.Lean.Launcher",
             "algorithm_type":
                 LEAN_ALGORITHM_TYPE,
+            "sparse_slice_policy":
+                LEAN_SPARSE_SLICE_POLICY,
             "build_target":
                 "QuantConnect.Algorithm.CSharp",
             "restore_mode":

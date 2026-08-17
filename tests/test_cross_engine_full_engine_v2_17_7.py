@@ -127,6 +127,56 @@ def test_lean_algorithm_has_discoverable_full_type(monkeypatch):
     )
 
 
+def test_lean_on_data_skips_symbols_missing_from_slice(
+    monkeypatch,
+):
+    monkeypatch.syspath_prepend(
+        str(ROOT / "scripts/workers")
+    )
+    namespace = runpy.run_path(
+        str(
+            ROOT
+            / "scripts/workers/lean_worker_v2_17.py"
+        )
+    )
+
+    source = namespace["ALGORITHM_SOURCE"]
+    assert "var points =" in source
+    assert "points.TryGetValue(" in source
+    assert "out var point" in source
+    assert (
+        "data.Get<CanonicalReplayPointV2177>(\n"
+        "                pair.Key)"
+        not in source
+    )
+    assert (
+        namespace["LEAN_SPARSE_SLICE_POLICY"]
+        == "TRY_GET_VALUE_SKIP_MISSING_SYMBOLS"
+    )
+
+
+def test_lean_sparse_slice_rewrite_fails_closed(
+    monkeypatch,
+):
+    monkeypatch.syspath_prepend(
+        str(ROOT / "scripts/workers")
+    )
+    namespace = runpy.run_path(
+        str(
+            ROOT
+            / "scripts/workers/lean_worker_v2_17.py"
+        )
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="sparse Slice access marker",
+    ):
+        namespace["_replace_sparse_slice_access"](
+            "public class MissingOnData {}"
+        )
+
+
 def test_lean_algorithm_source_fails_on_missing_marker(
     monkeypatch,
 ):
