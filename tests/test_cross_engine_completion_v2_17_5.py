@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import runpy
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,19 +15,28 @@ def test_pybroker_preserves_unrounded_result_prices():
     assert "round_test_result=False" in text
 
 
-def test_nautilus_uses_event_sequenced_next_open_market_orders():
+def test_nautilus_uses_quote_tick_sequenced_next_open_market_orders():
     text = (
         ROOT / "scripts/workers/nautilus_crosscheck_worker_v2_17.py"
     ).read_text(encoding="utf-8")
 
+    assert "QuoteTick" in text
+    assert "subscribe_quote_ticks" in text
+    assert "def on_quote_tick(" in text
+    assert 'work["execute_entry"]' in text
+    assert 'work["execute_exit"]' in text
+    assert text.count(".shift(1)") >= 2
     assert "TimeInForce.GTC" in text
     assert "TimeInForce.AT_THE_OPEN" not in text
-    assert "bar_execution=True" in text
-    assert "use_message_queue=True" in text
+    assert "def on_bar(" not in text
+    assert "bar_execution=True" not in text
+    assert "use_message_queue=True" not in text
     assert (
-        "QUEUED_MARKET_AFTER_DECISION_BAR_TO_NEXT_BAR_OPEN"
+        "SYNTHETIC_ZERO_SPREAD_QUOTE_TICK_AT_CANONICAL_OPEN"
         in text
     )
+    assert '"signals_shifted_rows": 1' in text
+    assert '"execution_authority": "NONE"' in text
 
 
 def test_nautilus_keeps_adjusted_precision_and_whole_shares():
@@ -57,3 +67,22 @@ def test_completion_runner_is_non_authoritative():
     assert "ORDER_CALLS 0" in text
     assert "EXECUTION_AUTHORITY NONE" in text
     assert "automatic_live_promotion" in text
+
+
+def test_completion_runners_discover_every_v217_test():
+    expected = {
+        str(path.relative_to(ROOT))
+        for path in (ROOT / "tests").glob(
+            "test_cross_engine_*v2_17*.py"
+        )
+    }
+    expected.add(
+        "tests/test_stocks_donor_integration_v2_17_1.py"
+    )
+
+    for relative in (
+        "scripts/run_cross_engine_completion_v2_17_5.py",
+        "scripts/run_cross_engine_finalization_v2_17_7.py",
+    ):
+        namespace = runpy.run_path(str(ROOT / relative))
+        assert set(namespace["focused_tests"]()) == expected

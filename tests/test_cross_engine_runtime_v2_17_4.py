@@ -12,9 +12,12 @@ def test_nautilus_replay_uses_matching_synthetic_precision():
 
     assert "REPLAY_PRICE_PRECISION = 8" in text
     assert 'REPLAY_PRICE_INCREMENT = "0.00000001"' in text
-    assert "SYNTHETIC_ADJUSTED_EQUITY" in text
+    assert "QuoteTick(" in text
+    assert "bid_price=px" in text
+    assert "ask_price=px" in text
     assert "price_precision=REPLAY_PRICE_PRECISION" in text
-    assert "price_increment=Price.from_str(REPLAY_PRICE_INCREMENT)" in text
+    assert "price_increment=Price.from_str(" in text
+    assert "REPLAY_PRICE_INCREMENT" in text
     assert "lot_size=Quantity.from_int(1)" in text
 
 

@@ -162,3 +162,18 @@ def test_fractional_observation_fails_parity():
         max_trade_return_difference_bps=0.05,
     )
     assert audit["parity"] is False
+
+
+def test_missing_survivor_artifact_fails_closed_without_traceback():
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    text = (
+        root
+        / "scripts/run_cross_engine_strategy_validation_v2_17.py"
+    ).read_text(encoding="utf-8")
+
+    assert "except FileNotFoundError as exc" in text
+    assert '"CROSS_ENGINE_PREFLIGHT"' in text
+    assert 'print("EXECUTION_AUTHORITY", "NONE")' in text
+    assert "return 2" in text

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 from pathlib import Path
 
 import pandas as pd
@@ -113,7 +112,20 @@ def main() -> int:
             "use the full engine set for a promotion-capable audit"
         )
 
-    all_trades = _survivor_trades()
+    try:
+        all_trades = _survivor_trades()
+    except FileNotFoundError as exc:
+        print(
+            "CROSS_ENGINE_PREFLIGHT",
+            "READY",
+            False,
+            "REASON",
+            str(exc),
+        )
+        print("BROKER_CALLS", 0)
+        print("ORDER_CALLS", 0)
+        print("EXECUTION_AUTHORITY", "NONE")
+        return 2
     if "hypothesis_id" not in all_trades:
         raise SystemExit("canonical trade artifact missing hypothesis_id")
 

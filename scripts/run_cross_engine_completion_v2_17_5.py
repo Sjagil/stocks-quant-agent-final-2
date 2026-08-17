@@ -17,6 +17,22 @@ OUT = (
 )
 
 
+def focused_tests() -> list[str]:
+    paths = set(
+        (ROOT / "tests").glob(
+            "test_cross_engine_*v2_17*.py"
+        )
+    )
+    paths.add(
+        ROOT
+        / "tests/test_stocks_donor_integration_v2_17_1.py"
+    )
+    return [
+        str(path.relative_to(ROOT))
+        for path in sorted(paths)
+    ]
+
+
 def run(
     label: str,
     command: list[str],
@@ -57,14 +73,7 @@ def main() -> int:
 
     python = sys.executable
 
-    focused = [
-        "tests/test_cross_engine_completion_v2_17_5.py",
-        "tests/test_cross_engine_runtime_v2_17_4.py",
-        "tests/test_cross_engine_fill_parity_v2_17_3.py",
-        "tests/test_cross_engine_adapter_compat_v2_17_2.py",
-        "tests/test_cross_engine_strategy_validation_v2_17.py",
-        "tests/test_stocks_donor_integration_v2_17_1.py",
-    ]
+    focused = focused_tests()
 
     run(
         "FOCUSED_TESTS",

@@ -50,4 +50,9 @@ def test_nautilus_has_version_safe_backtest_config_import():
 
     assert "nautilus_trader.backtest.config" in text
     assert "nautilus_trader.model.instruments import Equity" in text
-    assert "SYNTHETIC_ADJUSTED_EQUITY" in text
+    assert "Equity(" in text
+    assert "QuoteTick(" in text
+    assert (
+        "SYNTHETIC_ZERO_SPREAD_QUOTE_TICK_AT_CANONICAL_OPEN"
+        in text
+    )
