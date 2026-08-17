@@ -142,7 +142,7 @@ integrations:
     enabled: true
     kind: isolated_python
     python: ${NAUTILUS_PYTHON:-.venvs/nautilus/bin/python}
-    worker: scripts/workers/nautilus_worker.py
+    worker: scripts/workers/nautilus_crosscheck_worker_v2_17.py
     repo: references/nautilus_trader
     distributions:
     - nautilus_trader
@@ -152,7 +152,8 @@ integrations:
     - health
     - catalog
     - candle_validate
-    timeout_seconds: 300
+    - replay_intents
+    timeout_seconds: 3600
     upgrade:
       strategy: isolated_candidate
       package: nautilus_trader
@@ -203,18 +204,19 @@ integrations:
     enabled: true
     kind: isolated_python
     python: ${REFERENCE_FEDERATION_PYTHON:-.venv/bin/python}
-    worker: scripts/workers/reference_federation_worker.py
+    worker: scripts/workers/lean_worker_v2_17.py
     repo: references/Lean
     distributions: []
     imports: []
     capabilities:
     - health
     - catalog
-    - role_manifest
-    timeout_seconds: 120
+    - prepare_replay
+    - replay_intents
+    timeout_seconds: 3600
     required: false
     upgrade:
-      strategy: source_safe_reference
+      strategy: full_engine_required_v2_17
       repository: https://github.com/QuantConnect/Lean.git
   optuna_reference:
     enabled: true
@@ -236,19 +238,20 @@ integrations:
   pybroker_reference:
     enabled: true
     kind: isolated_python
-    python: ${REFERENCE_FEDERATION_PYTHON:-.venv/bin/python}
-    worker: scripts/workers/reference_federation_worker.py
+    python: ${PYBROKER_PYTHON:-.venvs/pybroker/bin/python}
+    worker: scripts/workers/pybroker_worker_v2_17.py
     repo: references/pybroker
-    distributions: []
-    imports: []
+    distributions:
+    - lib-pybroker
+    imports:
+    - pybroker
     capabilities:
     - health
-    - catalog
-    - role_manifest
-    timeout_seconds: 120
+    - replay_intents
+    timeout_seconds: 3600
     required: false
     upgrade:
-      strategy: source_safe_reference
+      strategy: isolated_cross_engine_v2_17
       repository: https://github.com/edtechre/pybroker.git
   skfolio_reference:
     enabled: true
@@ -318,3 +321,20 @@ integrations:
     upgrade:
       strategy: source_safe_reference
       repository: https://github.com/vnpy/vnpy_ib.git
+  stocks_donor_architecture:
+    enabled: true
+    kind: isolated_python
+    python: ${REFERENCE_FEDERATION_PYTHON:-.venv/bin/python}
+    worker: scripts/workers/stocks_donor_architecture_worker_v2_17_1.py
+    repo: references/Stocks
+    distributions: []
+    imports: []
+    capabilities:
+    - health
+    - architecture_manifest
+    - capability_map
+    timeout_seconds: 120
+    required: false
+    upgrade:
+      strategy: pinned_source_donor_contract_v2_17_1
+      repository: https://github.com/Sjagil/Stocks.git
