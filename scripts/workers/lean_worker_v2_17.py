@@ -22,9 +22,53 @@ CAPABILITIES = (
 ALGORITHM_SOURCE = 'using System;\nusing System.Collections.Generic;\nusing System.Globalization;\nusing System.IO;\nusing QuantConnect;\nusing QuantConnect.Algorithm;\nusing QuantConnect.Data;\nusing QuantConnect.Data.Subscription;\nusing QuantConnect.Orders;\n\npublic sealed class CanonicalReplayPointV2177 : BaseData\n{\n    public bool ExecuteEntry { get; set; }\n    public bool ExecuteExit { get; set; }\n\n    public override SubscriptionDataSource GetSource(\n        SubscriptionDataConfig config,\n        DateTime date,\n        bool isLiveMode)\n    {\n        var root = Environment.GetEnvironmentVariable(\n            "LEAN_CANONICAL_REPLAY_DIR");\n        if (string.IsNullOrWhiteSpace(root))\n        {\n            throw new InvalidOperationException(\n                "LEAN_CANONICAL_REPLAY_DIR missing");\n        }\n\n        var file = Path.Combine(\n            root,\n            config.Symbol.Value + ".csv");\n\n        return new SubscriptionDataSource(\n            file,\n            SubscriptionTransportMedium.LocalFile,\n            FileFormat.Csv);\n    }\n\n    public override BaseData Reader(\n        SubscriptionDataConfig config,\n        string line,\n        DateTime date,\n        bool isLiveMode)\n    {\n        if (string.IsNullOrWhiteSpace(line)\n            || line.StartsWith("timestamp,", StringComparison.Ordinal))\n        {\n            return null;\n        }\n\n        var parts = line.Split(\',\');\n        if (parts.Length < 4)\n        {\n            return null;\n        }\n\n        var timestamp = DateTime.Parse(\n            parts[0],\n            CultureInfo.InvariantCulture,\n            DateTimeStyles.AssumeUniversal\n                | DateTimeStyles.AdjustToUniversal);\n\n        var open = decimal.Parse(\n            parts[1],\n            NumberStyles.Float,\n            CultureInfo.InvariantCulture);\n\n        var entry = parts[2] == "1";\n        var exit = parts[3] == "1";\n\n        return new CanonicalReplayPointV2177\n        {\n            Symbol = config.Symbol,\n            Time = DateTime.SpecifyKind(\n                timestamp,\n                DateTimeKind.Utc),\n            Value = open,\n            ExecuteEntry = entry,\n            ExecuteExit = exit,\n        };\n    }\n\n    public override bool IsSparseData()\n    {\n        return false;\n    }\n}\n\n\npublic class CrossEngineReplayAlgorithmV2177 : QCAlgorithm\n{\n    private readonly Dictionary<Symbol, string> _names = new();\n    private string _fillsPath;\n\n    public override void Initialize()\n    {\n        SetTimeZone(TimeZones.Utc);\n        SetCash(1000000);\n        SetBenchmark(_ => 0m);\n\n        var symbolsRaw = Environment.GetEnvironmentVariable(\n            "LEAN_CANONICAL_REPLAY_SYMBOLS");\n        var startRaw = Environment.GetEnvironmentVariable(\n            "LEAN_CANONICAL_REPLAY_START");\n        var endRaw = Environment.GetEnvironmentVariable(\n            "LEAN_CANONICAL_REPLAY_END");\n        _fillsPath = Environment.GetEnvironmentVariable(\n            "LEAN_CANONICAL_REPLAY_FILLS");\n\n        if (string.IsNullOrWhiteSpace(symbolsRaw)\n            || string.IsNullOrWhiteSpace(startRaw)\n            || string.IsNullOrWhiteSpace(endRaw)\n            || string.IsNullOrWhiteSpace(_fillsPath))\n        {\n            throw new InvalidOperationException(\n                "canonical replay environment incomplete");\n        }\n\n        var start = DateTime.Parse(\n            startRaw,\n            CultureInfo.InvariantCulture,\n            DateTimeStyles.AssumeUniversal\n                | DateTimeStyles.AdjustToUniversal);\n        var end = DateTime.Parse(\n            endRaw,\n            CultureInfo.InvariantCulture,\n            DateTimeStyles.AssumeUniversal\n                | DateTimeStyles.AdjustToUniversal);\n\n        SetStartDate(start.Year, start.Month, start.Day);\n        SetEndDate(end.Year, end.Month, end.Day);\n\n        Directory.CreateDirectory(\n            Path.GetDirectoryName(_fillsPath));\n        File.WriteAllText(\n            _fillsPath,\n            "replay_symbol,timestamp,side,fill_price,quantity\\n");\n\n        foreach (\n            var raw\n            in symbolsRaw.Split(\n                \',\',\n                StringSplitOptions.RemoveEmptyEntries))\n        {\n            var ticker = raw.Trim();\n            var security = AddData<CanonicalReplayPointV2177>(\n                ticker,\n                Resolution.Hour,\n                TimeZones.Utc,\n                fillForward: false,\n                leverage: 1m);\n\n            _names[security.Symbol] = ticker;\n        }\n    }\n\n    public override void OnData(Slice data)\n    {\n        foreach (var pair in _names)\n        {\n            var point = data.Get<CanonicalReplayPointV2177>(\n                pair.Key);\n            if (point == null)\n            {\n                continue;\n            }\n\n            var holdings = Portfolio[pair.Key].Quantity;\n\n            if (point.ExecuteExit && holdings > 0)\n            {\n                MarketOrder(\n                    pair.Key,\n                    -1,\n                    asynchronous: false,\n                    tag: "XENGINE_EXIT");\n            }\n            else if (point.ExecuteEntry && holdings == 0)\n            {\n                MarketOrder(\n                    pair.Key,\n                    1,\n                    asynchronous: false,\n                    tag: "XENGINE_ENTRY");\n            }\n        }\n    }\n\n    public override void OnOrderEvent(OrderEvent orderEvent)\n    {\n        if (orderEvent.Status != OrderStatus.Filled)\n        {\n            return;\n        }\n\n        if (!_names.TryGetValue(\n            orderEvent.Symbol,\n            out var replaySymbol))\n        {\n            return;\n        }\n\n        var side = (\n            orderEvent.FillQuantity > 0\n                ? "BUY"\n                : "SELL");\n\n        var line = string.Join(\n            ",",\n            replaySymbol,\n            orderEvent.UtcTime.ToString(\n                "O",\n                CultureInfo.InvariantCulture),\n            side,\n            orderEvent.FillPrice.ToString(\n                CultureInfo.InvariantCulture),\n            Math.Abs(orderEvent.FillQuantity).ToString(\n                CultureInfo.InvariantCulture));\n\n        File.AppendAllText(\n            _fillsPath,\n            line + "\\n");\n    }\n}\n'
 
 
-ALGORITHM_SOURCE = ALGORITHM_SOURCE.replace(
-    "using QuantConnect.Data.Subscription;\n",
-    "",
+LEAN_ALGORITHM_NAMESPACE = (
+    "QuantConnect.Algorithm.CSharp"
+)
+LEAN_ALGORITHM_CLASS = (
+    "CrossEngineReplayAlgorithmV2177"
+)
+LEAN_ALGORITHM_TYPE = (
+    f"{LEAN_ALGORITHM_NAMESPACE}."
+    f"{LEAN_ALGORITHM_CLASS}"
+)
+
+
+def _prepare_algorithm_source(source: str) -> str:
+    legacy_import = (
+        "using QuantConnect.Data.Subscription;\n"
+    )
+    if source.count(legacy_import) > 1:
+        raise ValueError(
+            "ambiguous legacy LEAN subscription import"
+        )
+    source = source.replace(
+        legacy_import,
+        "",
+    )
+
+    namespace_marker = (
+        "using QuantConnect.Orders;\n\n"
+    )
+    if source.count(namespace_marker) != 1:
+        raise ValueError(
+            "LEAN algorithm namespace marker missing"
+        )
+
+    return (
+        source.replace(
+            namespace_marker,
+            namespace_marker
+            + f"namespace {LEAN_ALGORITHM_NAMESPACE}\n"
+            + "{\n",
+            1,
+        )
+        + "}\n"
+    )
+
+
+ALGORITHM_SOURCE = _prepare_algorithm_source(
+    ALGORITHM_SOURCE
 )
 
 
@@ -639,9 +683,7 @@ def _replay(request: dict, artifact_dir: Path) -> dict:
         config_text = _patch_json_value(
             config_text,
             "algorithm-type-name",
-            json.dumps(
-                "CrossEngineReplayAlgorithmV2177"
-            ),
+            json.dumps(LEAN_ALGORITHM_TYPE),
         )
         config_text = _patch_json_value(
             config_text,
@@ -741,7 +783,7 @@ def _replay(request: dict, artifact_dir: Path) -> dict:
             "runtime":
                 "QuantConnect.Lean.Launcher",
             "algorithm_type":
-                "CrossEngineReplayAlgorithmV2177",
+                LEAN_ALGORITHM_TYPE,
             "build_target":
                 "QuantConnect.Algorithm.CSharp",
             "restore_mode":

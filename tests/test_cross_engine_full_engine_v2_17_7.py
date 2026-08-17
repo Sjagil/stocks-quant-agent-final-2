@@ -3,6 +3,8 @@ from __future__ import annotations
 import runpy
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -101,6 +103,50 @@ def test_lean_custom_data_uses_current_namespace(monkeypatch):
         "using QuantConnect.Data.Subscription;"
         not in algorithm_source
     )
+
+
+def test_lean_algorithm_has_discoverable_full_type(monkeypatch):
+    monkeypatch.syspath_prepend(
+        str(ROOT / "scripts/workers")
+    )
+    namespace = runpy.run_path(
+        str(
+            ROOT
+            / "scripts/workers/lean_worker_v2_17.py"
+        )
+    )
+
+    expected = (
+        "QuantConnect.Algorithm.CSharp."
+        "CrossEngineReplayAlgorithmV2177"
+    )
+    assert namespace["LEAN_ALGORITHM_TYPE"] == expected
+    assert (
+        "namespace QuantConnect.Algorithm.CSharp\n{"
+        in namespace["ALGORITHM_SOURCE"]
+    )
+
+
+def test_lean_algorithm_source_fails_on_missing_marker(
+    monkeypatch,
+):
+    monkeypatch.syspath_prepend(
+        str(ROOT / "scripts/workers")
+    )
+    namespace = runpy.run_path(
+        str(
+            ROOT
+            / "scripts/workers/lean_worker_v2_17.py"
+        )
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="namespace marker missing",
+    ):
+        namespace["_prepare_algorithm_source"](
+            "public class MissingMarker {}"
+        )
 
 
 def test_no_external_engine_receives_live_authority():
