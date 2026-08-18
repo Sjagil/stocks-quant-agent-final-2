@@ -10,6 +10,9 @@ import yaml
 
 from stocks.integrations.registry import IntegrationRegistry
 from stocks.integrations.runner import IntegrationRunner
+from stocks.research.canonical_trade_handoff_v2_17_8 import (
+    load_canonical_trade_artifacts,
+)
 from stocks.research.cross_engine_validation_v2_17 import (
     aggregate_engine_status,
     build_canonical_replay_packet,
@@ -54,20 +57,20 @@ def _finalist_ids(config: dict) -> list[tuple[str, str]]:
 
 
 def _survivor_trades() -> pd.DataFrame:
-    candidates = (
-        ROOT
-        / "artifacts/research_runtime/strategy_factory_1h/"
-        "survivor_trades.parquet",
-        ROOT
-        / "artifacts/research_runtime/candidate_strategy_matrix/"
-        "trades.parquet",
-    )
-    for path in candidates:
-        if path.is_file():
-            return pd.read_parquet(path)
-    raise FileNotFoundError(
-        "No canonical survivor trade artifact found. "
-        "Run the 1h strategy factory/candidate matrix first."
+    return load_canonical_trade_artifacts(
+        primary_candidates=(
+            ROOT
+            / "artifacts/research_runtime/strategy_factory_1h/"
+            "survivor_trades.parquet",
+            ROOT
+            / "artifacts/research_runtime/candidate_strategy_matrix/"
+            "trades.parquet",
+        ),
+        supplemental=(
+            ROOT
+            / "artifacts/research_runtime/indicator_discovery_1h/"
+            "survivor_trades.parquet",
+        ),
     )
 
 
@@ -115,6 +118,18 @@ def main() -> int:
     try:
         all_trades = _survivor_trades()
     except FileNotFoundError as exc:
+        print(
+            "CROSS_ENGINE_PREFLIGHT",
+            "READY",
+            False,
+            "REASON",
+            str(exc),
+        )
+        print("BROKER_CALLS", 0)
+        print("ORDER_CALLS", 0)
+        print("EXECUTION_AUTHORITY", "NONE")
+        return 2
+    except ValueError as exc:
         print(
             "CROSS_ENGINE_PREFLIGHT",
             "READY",

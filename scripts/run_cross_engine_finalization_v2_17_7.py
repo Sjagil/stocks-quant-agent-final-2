@@ -7,6 +7,11 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import yaml
+
+from stocks.research.canonical_trade_handoff_v2_17_8 import (
+    configured_validation_coverage,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -157,19 +162,32 @@ def main() -> int:
         return 2
 
     summary = pd.read_csv(summary_path)
-    validated = (
-        not summary.empty
-        and (
-            summary["status"]
-            == "CROSS_ENGINE_VALIDATED"
-        ).any()
+    config = yaml.safe_load(
+        (
+            ROOT / "config/cross_engine_strategy_validation_v2_17.yaml"
+        ).read_text(encoding="utf-8")
     )
+    coverage = configured_validation_coverage(
+        summary,
+        config["scope"]["strategies"],
+    )
+    validated = bool(coverage["validated"])
 
     print("=" * 100)
     print(
         "V2_17_FINALIZATION",
         "CROSS_ENGINE_VALIDATED",
-        bool(validated),
+        validated,
+    )
+    print("CONFIGURED_STRATEGIES", coverage["expected"])
+    print("VALIDATED_STRATEGIES", coverage["validated_count"])
+    print(
+        "MISSING_STRATEGIES",
+        "|".join(coverage["missing_hypothesis_ids"]) or "NONE",
+    )
+    print(
+        "NOT_VALIDATED_STRATEGIES",
+        "|".join(coverage["not_validated_hypothesis_ids"]) or "NONE",
     )
     print("WHOLE_SHARES_ONLY True")
     print("FIXED_EURO_ORDER_CAP False")

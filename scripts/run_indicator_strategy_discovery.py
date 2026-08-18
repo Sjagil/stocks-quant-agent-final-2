@@ -16,6 +16,9 @@ from stocks.research.indicator_discovery import (
     promotion_status,
     validation_route,
 )
+from stocks.research.canonical_trade_handoff_v2_17_8 import (
+    materialize_survivor_trades,
+)
 from stocks.research.strategy_factory_1h import period_metrics, prepare_one_hour_frame
 from stocks.research.walkforward_splits import rolling_periods
 
@@ -236,6 +239,12 @@ def main() -> int:
     rejected = summary.loc[~summary.index.isin(survivors.index)].copy()
     output = ROOT / "artifacts/research_runtime/indicator_discovery_1h"
     output.mkdir(parents=True, exist_ok=True)
+    survivor_trades = materialize_survivor_trades(
+        trade_cache,
+        survivors,
+    )
+    survivor_trades_path = output / "survivor_trades.parquet"
+    survivor_trades.to_parquet(survivor_trades_path, index=False)
     hypothesis_frame.to_csv(output / "hypotheses.csv", index=False)
     pd.DataFrame(candidate_rows).to_csv(output / "fold_candidates.csv", index=False)
     selected.to_csv(output / "fold_selected.csv", index=False)
@@ -249,6 +258,11 @@ def main() -> int:
                 "templates": len({item.template for item in hypotheses}),
                 "hypotheses": len(hypotheses),
                 "survivors": len(survivors),
+                "survivor_trade_rows": len(survivor_trades),
+                "survivor_trade_hypotheses": int(
+                    survivor_trades["hypothesis_id"].nunique()
+                ),
+                "canonical_trade_artifact": str(survivor_trades_path),
                 "strong_survivors": int((survivors.get("status", pd.Series(dtype=str)) == "STRONG_SURVIVOR").sum()),
                 "validation_queue": len(survivors),
                 "source_symbols": symbols,
