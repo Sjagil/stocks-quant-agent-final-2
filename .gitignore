@@ -1,4 +1,5 @@
 .venv/
+.venv-*/
 .venvs/
 references/
 __pycache__/
@@ -33,3 +34,5 @@ artifacts/
 /artifacts/
 /build/
 .mypy_cache/
+v2_*-finalization.log
+v2_*-discovery.log

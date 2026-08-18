@@ -1,4 +1,4 @@
-# Stocks Quant Agent Final — v0.4.0
+# Stocks Quant Agent Final v0.4.5
 
 A stocks / ETFs / commodity-proxy active-swing **research platform** with canonical market data, isolated external-research engines and an execution-neutral `TradeIntent` boundary.
 
@@ -19,6 +19,96 @@ TradeIntent (execution_authority = NONE)
         ↓
 EXISTING external risk + broker authority
 ```
+
+## v0.4.5: operational v2.21 RL and MARL pipeline
+
+v0.4.5 completes the research path from canonical multi-symbol OHLCV to
+point-in-time episodes, purged walk-forward training, safe checkpoints, OOS
+cost stress, promotion evidence, and independent artifact verification.
+
+The supported v2.21 algorithms are MAPPO and MATD3. The configured final matrix
+uses exactly ten seeds. Smoke mode uses one seed and one fold and is explicitly
+not promotion-capable.
+
+```bash
+python scripts/run_rl_marl_finalization_v2_21.py
+python scripts/run_rl_marl_finalization_v2_21.py --full --full-tests
+```
+
+All outputs stay research-only and report zero broker calls, zero order calls,
+and `EXECUTION_AUTHORITY NONE`.
+
+## v0.4.4: v2.19 validated research automation
+
+v2.19 connects the immutable v2.18 handoff to the forward-signal engine without
+granting broker or order authority. It requires the exact two-strategy handoff,
+matches each strategy to a broadly validated finalist, canonicalizes and hashes
+its frozen parameters, and admits only supported deployment adapters.
+
+The automation is deterministic and fail-closed. It verifies all v2.18 source
+hashes on every run, rejects overlapping runs, recovers only stale locks, writes
+artifacts atomically, and does not rewrite unchanged deployment outputs.
+
+Build and verify the deployment bridge:
+
+```bash
+python scripts/build_validated_strategy_deployment_v2_19.py
+python scripts/audit_validated_strategy_deployment_v2_19.py
+```
+
+Run the research-only automation and strict forward-signal gate:
+
+```bash
+python scripts/run_validated_strategy_automation_v2_19.py
+```
+
+Run the full local finalization, optionally rebuilding v2.18 first:
+
+```bash
+python scripts/run_research_automation_finalization_v2_19.py \
+  --refresh-v2-18 \
+  --limit-symbols 5 \
+  --full-tests
+```
+
+Deployment outputs are written below
+`artifacts/research_runtime/validated_strategy_deployment_v2_19/`. Strict
+forward-signal outputs are written below
+`artifacts/research_runtime/validated_forward_signal_state_v2_19/`.
+
+## v0.4.3: v2.18 validated-strategy handoff
+
+v2.18 converts the completed v2.17 cross-engine replay into an immutable,
+fail-closed research handoff. A strategy is registered only when the configured
+scope is exact and Native, PyBroker, NautilusTrader and LEAN all report
+`FULL_ENGINE_REPLAY` with parity on the same canonical packet and bar hashes.
+
+The handoff records SHA-256 hashes for the validation configuration, summaries,
+audits, canonical schedules, ledgers and parity rows. Any missing engine,
+partial replay, blocker, changed hash, missing evidence file, broker call, order
+call or non-`NONE` authority rejects the build.
+
+Build and independently verify the handoff from existing v2.17 evidence:
+
+```bash
+python scripts/build_cross_engine_handoff_v2_18.py
+python scripts/audit_cross_engine_handoff_v2_18.py
+```
+
+Run the complete v2.18 gate, optionally refreshing v2.17 first:
+
+```bash
+python scripts/run_cross_engine_finalization_v2_18.py --full-tests
+python scripts/run_cross_engine_finalization_v2_18.py \
+  --refresh-v2-17 \
+  --limit-symbols 5 \
+  --full-tests
+```
+
+Outputs are written below
+`artifacts/research_runtime/cross_engine_handoff_v2_18/` and remain
+research-only. v2.18 does not grant broker authority or automatic live
+promotion.
 
 ## v0.4.0: integration foundation
 
@@ -197,9 +287,53 @@ promote environment only after pass
 
 Do not modify third-party source in `references/` unless an explicit fork/patch is intended. Do not edit `build/lib/stocks`; edit `src/stocks` only.
 
-## RL remains shadow-only
+## RL and MARL research pipeline
 
-The existing causal long-only RL environment remains available. PPO and SAC training are research-only. A model must never be promoted from a same-dataset train/evaluation run. Purged walk-forward, untouched OOS, multi-seed, cost stress and promotion governance are the next pipeline stage.
+The v2.21 pipeline is operational and remains shadow-only. It supports a shared
+MAPPO actor with a centralized critic and an isolated MATD3 benchmark. Neither
+path has a broker interface or execution authority.
+
+Install the research dependencies:
+
+```bash
+python -m pip install -e '.[rl,dev]'
+```
+
+Download or place canonical Parquet files under `data/derived`,
+`data/adjusted`, or `data/processed`, then run one cheap end-to-end check:
+
+```bash
+python scripts/run_rl_marl_pipeline_v2_21.py --smoke
+```
+
+Run the configured ten-seed walk-forward matrix:
+
+```bash
+python scripts/run_rl_marl_pipeline_v2_21.py \
+  --config config/rl_marl_pipeline_v2_21.yaml \
+  --verify-reproducibility
+```
+
+Audit a completed run without retraining:
+
+```bash
+python scripts/audit_rl_marl_pipeline_v2_21.py \
+  artifacts/rl_marl/v2_21/<config-hash>-<dataset-hash>
+```
+
+The pipeline provides:
+
+- aligned point-in-time features without forward-filled bars;
+- train-only feature scaling per purged walk-forward fold;
+- deterministic seed and fold ledgers;
+- pickle-free NumPy checkpoints with SHA-256 manifests;
+- untouched OOS evaluation at 1.0x, 1.5x, and 2.0x costs;
+- concentration, drawdown, baseline, DSR, and confidence gates;
+- fail-closed research decisions with `EXECUTION_AUTHORITY NONE`.
+
+Promotion remains blocked until the full ten-seed evidence passes every gate,
+including explicit regime coverage. Passing the research gate still does not
+grant live execution authority.
 
 ## Tests
 
