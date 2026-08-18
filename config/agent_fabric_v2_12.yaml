@@ -1,0 +1,98 @@
+schema: agent_fabric_v2_12
+mode: SHADOW_RESEARCH_ONLY
+execution_authority: NONE
+money_control: false
+broker_order_submission: false
+
+hard_gates:
+  require_validated_strategy: true
+  require_fresh_closed_bar_trigger_for_new_entry: true
+  require_shariah_verified_for_new_entry: true
+  require_ibkr_account_ready_for_sizing: true
+  agents_may_override_hard_gates: false
+
+candle_fabric:
+  primary_clock: CANONICAL_CAUSAL_MTF
+  primary_module: stocks.data.multitimeframe
+  close_only: true
+  active_timeframes: [15m, 1h, 2h, 4h, 1d, 1w]
+  nautilus_crosscheck: true
+  nautilus_integration: nautilus
+  nautilus_action: candle_validate
+  max_crosscheck_rows: 512
+
+agents:
+  dqn_timing:
+    role: ENTRY_EXIT_TIMING
+    library: stable_baselines3
+    algorithm: DQN
+    action_space: [HOLD, ENTER_LONG, EXIT_TO_CASH]
+    can_open: true
+    can_short: false
+    direct_authority: false
+  sac_sizing:
+    role: CONTINUOUS_TARGET_EXPOSURE
+    library: stable_baselines3
+    algorithm: SAC
+    action_range: [0.0, 1.0]
+    can_short: false
+    direct_authority: false
+  maskable_ppo_risk:
+    role: POSITION_RISK_REDUCTION
+    library: sb3_contrib
+    algorithm: MaskablePPO
+    actions: [KEEP, CUT_25, CUT_50, FLAT]
+    can_increase_position: false
+    can_open: false
+    can_short: false
+    direct_authority: false
+  nlp_context:
+    role: NEWS_CONTEXT_MODIFIER
+    backend: stocks.news.nlp
+    model_default: ProsusAI/finbert
+    minimum_modifier: 0.90
+    maximum_modifier: 1.10
+    may_create_entry: false
+    direct_authority: false
+  marl_coordinator:
+    role: COOPERATIVE_SPECIALIST_COORDINATION
+    environment: pettingzoo_parallel
+    training_mode: INDEPENDENT_SPECIALIST_LEARNERS
+    centralized_critic_enabled: false
+    shared_reward: true
+    can_short: false
+    direct_authority: false
+  finrl_challenger:
+    role: PORTFOLIO_ROTATION_CHALLENGER
+    integration: finrl
+    direct_authority: false
+  qlib_alpha:
+    role: ML_ALPHA_CHALLENGER
+    integration: qlib
+    direct_authority: false
+
+training:
+  seeds: [11, 29, 47]
+  purge_bars: 64
+  embargo_bars: 64
+  minimum_fully_observed_rows: 800
+  test_used_for_model_selection: false
+  smoke_timesteps:
+    DQN: 1500
+    SAC: 1500
+    MASKABLE_PPO: 2048
+  full_timesteps:
+    DQN: 150000
+    SAC: 250000
+    MASKABLE_PPO: 250000
+
+promotion:
+  execution_authority: NONE
+  minimum_closed_forward_episodes: 500
+  require_positive_oos_net_expectancy: true
+  require_cost_stress_survival: true
+  require_regime_robustness: true
+  require_unseen_symbol_generalization: true
+  require_benchmark_edge: true
+  require_cross_seed_stability: true
+  live_promotion_automatic: false

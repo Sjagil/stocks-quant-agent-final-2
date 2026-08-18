@@ -1,0 +1,75 @@
+schema: cross_engine_strategy_validation_v2_17
+
+scope:
+  strategies:
+    - hypothesis_id: 22a8bd49aaeaaf4cb5fb
+      strategy: rsi_threshold_exit
+    - hypothesis_id: 549361a5ac964cfee5d6
+      strategy: obv_breakout
+  primary_timeframe: 1h
+  supported_execution_contracts:
+    - NEXT_OPEN_REPLAY
+  deferred_execution_contracts:
+    - 1H_SETUP_INTRABAR_EXECUTION
+    - LIMIT_STOP_NEXT_15M_PATH
+
+canonical_contract:
+  decision_bar: PREVIOUS_CLOSED_1H_BAR
+  entry_fill: NEXT_1H_OPEN
+  exit_fill: NEXT_1H_OPEN
+  position_side: LONG_ONLY
+  replay_quantity: 1
+  whole_shares_only: true
+  fractional_shares_allowed: false
+  force_end_trades_allowed_for_parity: false
+  common_base_cost_bps_per_side: 3.0
+  common_stress_cost_bps_per_side: 10.0
+  cross_engine_reselection: false
+  parameters_frozen: true
+
+engines:
+  required:
+    - native
+    - pybroker
+    - nautilus
+    - lean
+  full_engine_replay_required:
+    - pybroker
+    - nautilus
+    - lean
+  fallback_or_partial_modes_do_not_validate: true
+
+parity:
+  exact_trade_count: true
+  exact_entry_timestamps: true
+  exact_exit_timestamps: true
+  exact_side_sequence: true
+  max_fill_price_relative_error: 1.0e-8
+  max_trade_return_difference_bps: 0.05
+  minimum_trade_match_ratio: 0.999999
+  require_same_canonical_packet_hash: true
+  require_same_bar_hash: true
+  require_no_reselection: true
+
+promotion:
+  minimum_symbols: 5
+  minimum_total_trades: 100
+  require_all_required_engines: true
+  automatic_live_promotion: false
+  execution_authority: NONE
+
+lean:
+  require_full_launcher_or_cli_backtest: true
+  source_harness_only_does_not_validate: true
+  allow_docker_cli: true
+  allow_local_dotnet_launcher: true
+
+nautilus:
+  require_backtest_engine_fill_report: true
+  bar_object_validation_only_does_not_validate: true
+
+authority:
+  canonical_broker_writer: stocks.live.service.live_submit_authorized
+  broker_order_submission: false
+  external_engine_order_submission: false
+  execution_authority: NONE
