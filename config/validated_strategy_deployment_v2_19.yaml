@@ -1,0 +1,29 @@
+schema: validated_strategy_research_deployment_v2_19
+
+source:
+  handoff_root: artifacts/research_runtime/cross_engine_handoff_v2_18
+  handoff_audit_schema: cross_engine_handoff_audit_v2_18
+  handoff_registry_schema: cross_engine_strategy_registry_v2_18
+  final_roster: artifacts/research_runtime/final_strategy_roster/roster.csv
+
+deployment:
+  required_handoff_status: RESEARCH_HANDOFF_READY
+  required_roster_status: BROADLY_VALIDATED_FINALIST
+  required_signal_adapters:
+    - rsi_threshold_exit
+    - obv_breakout
+  require_exact_handoff_scope: true
+  require_frozen_parameter_payload: true
+  primary_timeframe: 1h
+  execution_contract: NEXT_OPEN_REPLAY
+  overlap_policy: REJECT
+  automatic_live_promotion: false
+  broker_calls: 0
+  order_calls: 0
+  execution_authority: NONE
+
+automation:
+  mode: EXTERNAL_TRIGGER
+  timezone: UTC
+  lock_timeout_seconds: 21600
+  write_only_when_changed: true

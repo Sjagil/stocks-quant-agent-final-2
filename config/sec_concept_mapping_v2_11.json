@@ -1,0 +1,29 @@
+{
+  "schema": "sec_concept_mapping_v2_11",
+  "mapping_authority": "REVIEWED_CONCEPT_ALIASES_ONLY",
+  "automatic_zero_imputation": false,
+  "automatic_currency_conversion": false,
+  "approved_debt_aliases": [
+    "DebtInstrumentCarryingAmount",
+    "ConvertibleDebtNoncurrent",
+    "Borrowings",
+    "ShorttermBorrowings"
+  ],
+  "approved_receivables_aliases": [
+    "AccountsAndOtherReceivablesNetCurrent",
+    "OtherReceivablesNetCurrent",
+    "TradeAndOtherCurrentReceivables"
+  ],
+  "explicitly_not_debt_liabilities": [
+    "AvailableForSaleSecuritiesDebtSecurities",
+    "AvailableForSaleSecuritiesDebtSecuritiesCurrent",
+    "DebtSecuritiesAvailableForSaleExcludingAccruedInterest",
+    "DebtSecuritiesAvailableForSaleExcludingAccruedInterestCurrent",
+    "AvailableForSaleDebtSecuritiesAmortizedCostBasis"
+  ],
+  "notes": [
+    "Debt-security investment assets must never be mapped as company debt.",
+    "Missing debt is never interpreted as zero.",
+    "Non-USD SEC facts remain fail-closed until point-in-time FX conversion is implemented."
+  ]
+}
