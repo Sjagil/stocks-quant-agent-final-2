@@ -1,0 +1,160 @@
+......................................................                   [100%]
+54 passed in 3.12s
+No broken requirements found.
+........................................................................ [ 24%]
+........................................................................ [ 48%]
+........................................................................ [ 72%]
+........................................................................ [ 96%]
+..........                                                               [100%]
+=============================== warnings summary ===============================
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+  /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/lib/python3.12/site-packages/matplotlib/_fontconfig_pattern.py:64: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    prop = Group((name + Suppress("=") + comma_separated(value)) | oneOf(_CONSTANTS))
+
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+  /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/lib/python3.12/site-packages/matplotlib/_fontconfig_pattern.py:85: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    parse = parser.parseString(pattern)
+
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+  /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/lib/python3.12/site-packages/matplotlib/_fontconfig_pattern.py:89: PyparsingDeprecationWarning: 'resetCache' deprecated - use 'reset_cache'
+    parser.resetCache()
+
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+  /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/lib/python3.12/site-packages/matplotlib/_mathtext.py:45: PyparsingDeprecationWarning: 'enablePackrat' deprecated - use 'enable_packrat'
+    ParserElement.enablePackrat()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+298 passed, 14 warnings in 12.24s
+ENGINE pybroker INTEGRATION pybroker_reference STATE OK DATA {'base_prefix': '/Users/ayoubalhari/.pyenv/versions/3.12.11', 'capabilities': ['health', 'replay_intents'], 'executable': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venvs/pybroker/bin/python', 'imports': [{'module': 'pybroker', 'ok': True, 'path': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/pybroker/src/pybroker/__init__.py', 'version': '1.2.15'}], 'packages': {'lib-pybroker': '1.2.15'}, 'prefix': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venvs/pybroker', 'python': '3.12.11 (main, Aug 12 2026, 00:23:07) [Clang 17.0.0 (clang-1700.0.13.5)]', 'repo': {'available': True, 'branch': 'master', 'commit': 'e0e7b08886343274efb05b96f7399ca3de280aa5', 'dirty': False, 'path': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/pybroker'}, 'venv_active': True} WARNINGS ()
+ENGINE nautilus INTEGRATION nautilus STATE OK DATA {'base_prefix': '/Users/ayoubalhari/.pyenv/versions/3.12.11', 'capabilities': ['health', 'catalog', 'candle_validate', 'replay_intents'], 'executable': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venvs/nautilus/bin/python', 'imports': [{'module': 'nautilus_trader', 'ok': True, 'path': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venvs/nautilus/lib/python3.12/site-packages/nautilus_trader/__init__.py', 'version': '1.227.0'}], 'packages': {'nautilus_trader': '1.227.0'}, 'prefix': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venvs/nautilus', 'python': '3.12.11 (main, Aug 12 2026, 00:23:07) [Clang 17.0.0 (clang-1700.0.13.5)]', 'repo': {'available': True, 'branch': 'develop', 'commit': '17983086dc3554dd970e5118f6bca6258d3afa98', 'dirty': False, 'path': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/nautilus_trader'}, 'venv_active': True} WARNINGS ()
+ENGINE lean INTEGRATION lean_reference STATE OK DATA {'broker_calls': 0, 'canonical_data_adapter': 'LOCAL_CUSTOM_BASEDATA_V2_17_7', 'capabilities': ['health', 'catalog', 'prepare_replay', 'replay_intents'], 'execution_authority': 'NONE', 'full_engine_replay_candidate': True, 'order_calls': 0, 'repo': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/Lean', 'repo_exists': True, 'runtime': {'docker': '/opt/homebrew/bin/docker', 'docker_ready': True, 'dotnet': '/opt/homebrew/bin/dotnet', 'full_cli_candidate': True, 'launcher': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/Lean/Launcher/bin/Release/QuantConnect.Lean.Launcher.dll', 'lean_cli': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venvs/lean-cli/bin/lean', 'local_launcher_candidate': True}} WARNINGS ()
+ENGINE stocks_donor INTEGRATION stocks_donor_architecture STATE OK DATA {'blockers': [], 'capabilities': ['health', 'architecture_manifest', 'capability_map'], 'donor_broker_writes': 0, 'execution_authority': 'NONE', 'manifest_hash': '597530caecc7373c3d6bd7c854ff95a864371478790a7a2045ee01a743942d78', 'status': 'GO', 'upstream_commit': 'e6f04da8e5afe53b74bf70390e59b06f6ceb624c', 'worktree_clean': False, 'worktree_clean_for_contract': True} WARNINGS ()
+CROSS_ENGINE_RUNTIME_AUDIT_V2_17_1 CORE_READY True PROMOTION_RUNTIME_READY True
+PYBROKER_FULL_REPLAY_READY True
+NAUTILUS_FULL_REPLAY_ADAPTER_READY True
+LEAN_FULL_REPLAY_RUNTIME_READY True
+STOCKS_DONOR_CONTRACT_READY True
+LEAN_SOURCE_ONLY_DOES_NOT_VALIDATE True
+BROKER_CALLS 0
+ORDER_CALLS 0
+EXECUTION_AUTHORITY NONE
+============================================================================== 
+RUN_ENGINE pybroker 22a8bd49aaeaaf4cb5fb rsi_threshold_exit
+============================================================================== 
+RUN_ENGINE nautilus 22a8bd49aaeaaf4cb5fb rsi_threshold_exit
+============================================================================== 
+RUN_ENGINE lean 22a8bd49aaeaaf4cb5fb rsi_threshold_exit
+CROSS_ENGINE_RESULT 22a8bd49aaeaaf4cb5fb rsi_threshold_exit CROSS_ENGINE_VALIDATED BLOCKERS 
+CROSS_ENGINE_SKIP 549361a5ac964cfee5d6 obv_breakout NO_CANONICAL_TRADES
+==============================================================================
+CROSS_ENGINE_STRATEGY_VALIDATION_V2_17 STRATEGIES 1 VALIDATED 1
+       hypothesis_id           strategy  symbols  trades                 status blockers
+22a8bd49aaeaaf4cb5fb rsi_threshold_exit        5     358 CROSS_ENGINE_VALIDATED       []
+CROSS_ENGINE_RESELECTION False
+WHOLE_SHARES_ONLY True
+FIXED_EURO_ORDER_CAP False
+AUTOMATIC_LIVE_PROMOTION False
+BROKER_CALLS 0
+ORDER_CALLS 0
+EXECUTION_AUTHORITY NONE
+ARTIFACT_ROOT /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/artifacts/research_runtime/cross_engine_strategy_validation_v2_17
+====================================================================================================
+CROSS_ENGINE_PARITY_DEEP_AUDIT_V2_17_5
+----------------------------------------------------------------------------------------------------
+ENGINE native MODE FULL_ENGINE_REPLAY PARITY True TRADES 358
+----------------------------------------------------------------------------------------------------
+ENGINE pybroker MODE FULL_ENGINE_REPLAY PARITY True TRADES 358
+  EXPECTED_TRADES 358.0
+  OBSERVED_TRADES 358.0
+  TRADE_COUNT_MATCH True
+  EXACT_SYMBOLS True
+  EXACT_TIMESTAMPS True
+  INTEGER_QUANTITY True
+  MAXIMUM_FILL_PRICE_RELATIVE_ERROR 0.0
+  MAXIMUM_TRADE_RETURN_DIFFERENCE_BPS 0.0
+  TRADE_MATCH_RATIO 1.0
+  PARITY_FILE 22a8bd49aaeaaf4cb5fb/pybroker_parity_rows.csv ROWS 358
+  MISMATCH_ROWS 0
+----------------------------------------------------------------------------------------------------
+ENGINE nautilus MODE FULL_ENGINE_REPLAY PARITY True TRADES 358
+  EXPECTED_TRADES 358.0
+  OBSERVED_TRADES 358.0
+  TRADE_COUNT_MATCH True
+  EXACT_SYMBOLS True
+  EXACT_TIMESTAMPS True
+  INTEGER_QUANTITY True
+  MAXIMUM_FILL_PRICE_RELATIVE_ERROR 1.7564943568332407e-11
+  MAXIMUM_TRADE_RETURN_DIFFERENCE_BPS 1.7609025348974686e-07
+  TRADE_MATCH_RATIO 1.0
+  PARITY_FILE 22a8bd49aaeaaf4cb5fb/nautilus_parity_rows.csv ROWS 358
+  MISMATCH_ROWS 0
+----------------------------------------------------------------------------------------------------
+ENGINE lean MODE FULL_ENGINE_REPLAY PARITY True TRADES 358
+  EXPECTED_TRADES 358.0
+  OBSERVED_TRADES 358.0
+  TRADE_COUNT_MATCH True
+  EXACT_SYMBOLS True
+  EXACT_TIMESTAMPS True
+  INTEGER_QUANTITY True
+  MAXIMUM_FILL_PRICE_RELATIVE_ERROR 0.0
+  MAXIMUM_TRADE_RETURN_DIFFERENCE_BPS 0.0
+  TRADE_MATCH_RATIO 1.0
+  PARITY_FILE 22a8bd49aaeaaf4cb5fb/lean_parity_rows.csv ROWS 358
+  MISMATCH_ROWS 0
+====================================================================================================
+STRATEGY_SUMMARY
+       hypothesis_id           strategy                 status missing_engines non_validating_engines engine_failures blockers
+22a8bd49aaeaaf4cb5fb rsi_threshold_exit CROSS_ENGINE_VALIDATED              []                     []              {}       []
+BROKER_CALLS 0
+ORDER_CALLS 0
+EXECUTION_AUTHORITY NONE
+ARTIFACT_ROOT /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/artifacts/research_runtime/cross_engine_strategy_validation_v2_17
+====================================================================================================
+RUN FOCUSED_TESTS
+COMMAND /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/bin/python -m pytest -q tests/test_cross_engine_adapter_compat_v2_17_2.py tests/test_cross_engine_completion_v2_17_5.py tests/test_cross_engine_fill_parity_v2_17_3.py tests/test_cross_engine_full_engine_v2_17_7.py tests/test_cross_engine_runtime_v2_17_4.py tests/test_cross_engine_runtime_v2_17_6.py tests/test_cross_engine_strategy_validation_v2_17.py tests/test_stocks_donor_integration_v2_17_1.py
+RESULT FOCUSED_TESTS 0
+====================================================================================================
+RUN COMPILEALL
+COMMAND /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/bin/python -m compileall -q src scripts
+RESULT COMPILEALL 0
+====================================================================================================
+RUN PIP_CHECK
+COMMAND /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/bin/python -m pip check
+RESULT PIP_CHECK 0
+====================================================================================================
+RUN GIT_DIFF_CHECK
+COMMAND git diff --check
+RESULT GIT_DIFF_CHECK 0
+====================================================================================================
+RUN FULL_TEST_SUITE
+COMMAND /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/bin/python -m pytest -q
+RESULT FULL_TEST_SUITE 0
+====================================================================================================
+RUN RUNTIME_AUDIT
+COMMAND /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/bin/python scripts/audit_cross_engine_runtime_v2_17.py
+RESULT RUNTIME_AUDIT 0
+====================================================================================================
+RUN CROSS_ENGINE_REPLAY
+COMMAND /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/bin/python scripts/run_cross_engine_strategy_validation_v2_17.py --limit-symbols 5
+RESULT CROSS_ENGINE_REPLAY 0
+====================================================================================================
+RUN DEEP_AUDIT
+COMMAND /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/bin/python scripts/audit_cross_engine_outputs_v2_17_4.py
+RESULT DEEP_AUDIT 0
+====================================================================================================
+V2_17_FINALIZATION CROSS_ENGINE_VALIDATED True
+WHOLE_SHARES_ONLY True
+FIXED_EURO_ORDER_CAP False
+BROKER_CALLS 0
+ORDER_CALLS 0
+EXECUTION_AUTHORITY NONE

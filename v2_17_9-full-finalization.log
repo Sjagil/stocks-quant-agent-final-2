@@ -1,0 +1,208 @@
+............................................                             [100%]
+44 passed in 1.94s
+No broken requirements found.
+........................................................................ [ 25%]
+........................................................................ [ 50%]
+........................................................................ [ 75%]
+........................................................................ [100%]
+=============================== warnings summary ===============================
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+  /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/lib/python3.12/site-packages/matplotlib/_fontconfig_pattern.py:64: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    prop = Group((name + Suppress("=") + comma_separated(value)) | oneOf(_CONSTANTS))
+
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+  /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/lib/python3.12/site-packages/matplotlib/_fontconfig_pattern.py:85: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    parse = parser.parseString(pattern)
+
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+  /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/lib/python3.12/site-packages/matplotlib/_fontconfig_pattern.py:89: PyparsingDeprecationWarning: 'resetCache' deprecated - use 'reset_cache'
+    parser.resetCache()
+
+tests/test_fast_discovery.py::test_vectorbt_screen_returns_ranked_candidates
+  /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/lib/python3.12/site-packages/matplotlib/_mathtext.py:45: PyparsingDeprecationWarning: 'enablePackrat' deprecated - use 'enable_packrat'
+    ParserElement.enablePackrat()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+288 passed, 14 warnings in 9.22s
+ENGINE pybroker INTEGRATION pybroker_reference STATE OK DATA {'base_prefix': '/Users/ayoubalhari/.pyenv/versions/3.12.11', 'capabilities': ['health', 'replay_intents'], 'executable': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venvs/pybroker/bin/python', 'imports': [{'module': 'pybroker', 'ok': True, 'path': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/pybroker/src/pybroker/__init__.py', 'version': '1.2.15'}], 'packages': {'lib-pybroker': '1.2.15'}, 'prefix': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venvs/pybroker', 'python': '3.12.11 (main, Aug 12 2026, 00:23:07) [Clang 17.0.0 (clang-1700.0.13.5)]', 'repo': {'available': True, 'branch': 'master', 'commit': 'e0e7b08886343274efb05b96f7399ca3de280aa5', 'dirty': False, 'path': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/pybroker'}, 'venv_active': True} WARNINGS ()
+ENGINE nautilus INTEGRATION nautilus STATE OK DATA {'base_prefix': '/Users/ayoubalhari/.pyenv/versions/3.12.11', 'capabilities': ['health', 'catalog', 'candle_validate', 'replay_intents'], 'executable': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venvs/nautilus/bin/python', 'imports': [{'module': 'nautilus_trader', 'ok': True, 'path': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venvs/nautilus/lib/python3.12/site-packages/nautilus_trader/__init__.py', 'version': '1.227.0'}], 'packages': {'nautilus_trader': '1.227.0'}, 'prefix': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venvs/nautilus', 'python': '3.12.11 (main, Aug 12 2026, 00:23:07) [Clang 17.0.0 (clang-1700.0.13.5)]', 'repo': {'available': True, 'branch': 'develop', 'commit': '17983086dc3554dd970e5118f6bca6258d3afa98', 'dirty': False, 'path': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/nautilus_trader'}, 'venv_active': True} WARNINGS ()
+ENGINE lean INTEGRATION lean_reference STATE OK DATA {'broker_calls': 0, 'canonical_data_adapter': 'LOCAL_CUSTOM_BASEDATA_V2_17_7', 'capabilities': ['health', 'catalog', 'prepare_replay', 'replay_intents'], 'execution_authority': 'NONE', 'full_engine_replay_candidate': True, 'order_calls': 0, 'repo': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/Lean', 'repo_exists': True, 'runtime': {'docker': '/opt/homebrew/bin/docker', 'docker_ready': True, 'dotnet': '/opt/homebrew/bin/dotnet', 'full_cli_candidate': True, 'launcher': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/Lean/Launcher/bin/Release/QuantConnect.Lean.Launcher.dll', 'lean_cli': '/Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venvs/lean-cli/bin/lean', 'local_launcher_candidate': True}} WARNINGS ()
+ENGINE stocks_donor INTEGRATION stocks_donor_architecture STATE OK DATA {'blockers': [], 'capabilities': ['health', 'architecture_manifest', 'capability_map'], 'donor_broker_writes': 0, 'execution_authority': 'NONE', 'manifest_hash': '597530caecc7373c3d6bd7c854ff95a864371478790a7a2045ee01a743942d78', 'status': 'GO', 'upstream_commit': 'e6f04da8e5afe53b74bf70390e59b06f6ceb624c', 'worktree_clean': False, 'worktree_clean_for_contract': True} WARNINGS ()
+CROSS_ENGINE_RUNTIME_AUDIT_V2_17_1 CORE_READY True PROMOTION_RUNTIME_READY True
+PYBROKER_FULL_REPLAY_READY True
+NAUTILUS_FULL_REPLAY_ADAPTER_READY True
+LEAN_FULL_REPLAY_RUNTIME_READY True
+STOCKS_DONOR_CONTRACT_READY True
+LEAN_SOURCE_ONLY_DOES_NOT_VALIDATE True
+BROKER_CALLS 0
+ORDER_CALLS 0
+EXECUTION_AUTHORITY NONE
+============================================================================== 
+RUN_ENGINE pybroker 22a8bd49aaeaaf4cb5fb rsi_threshold_exit
+============================================================================== 
+RUN_ENGINE nautilus 22a8bd49aaeaaf4cb5fb rsi_threshold_exit
+============================================================================== 
+RUN_ENGINE lean 22a8bd49aaeaaf4cb5fb rsi_threshold_exit
+CROSS_ENGINE_RESULT 22a8bd49aaeaaf4cb5fb rsi_threshold_exit CROSS_ENGINE_NOT_VALIDATED BLOCKERS LEAN_FULL_REPLAY_REQUIRED|LEAN_PARITY_FAILED
+CROSS_ENGINE_SKIP 549361a5ac964cfee5d6 obv_breakout NO_CANONICAL_TRADES
+==============================================================================
+CROSS_ENGINE_STRATEGY_VALIDATION_V2_17 STRATEGIES 1 VALIDATED 0
+       hypothesis_id           strategy  symbols  trades                     status                                        blockers
+22a8bd49aaeaaf4cb5fb rsi_threshold_exit        5     358 CROSS_ENGINE_NOT_VALIDATED [LEAN_FULL_REPLAY_REQUIRED, LEAN_PARITY_FAILED]
+CROSS_ENGINE_RESELECTION False
+WHOLE_SHARES_ONLY True
+FIXED_EURO_ORDER_CAP False
+AUTOMATIC_LIVE_PROMOTION False
+BROKER_CALLS 0
+ORDER_CALLS 0
+EXECUTION_AUTHORITY NONE
+ARTIFACT_ROOT /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/artifacts/research_runtime/cross_engine_strategy_validation_v2_17
+====================================================================================================
+CROSS_ENGINE_PARITY_DEEP_AUDIT_V2_17_5
+----------------------------------------------------------------------------------------------------
+ENGINE native MODE FULL_ENGINE_REPLAY PARITY True TRADES 358.0
+----------------------------------------------------------------------------------------------------
+ENGINE pybroker MODE FULL_ENGINE_REPLAY PARITY True TRADES 358.0
+  EXPECTED_TRADES 358.0
+  OBSERVED_TRADES 358.0
+  TRADE_COUNT_MATCH True
+  EXACT_SYMBOLS True
+  EXACT_TIMESTAMPS True
+  INTEGER_QUANTITY True
+  MAXIMUM_FILL_PRICE_RELATIVE_ERROR 0.0
+  MAXIMUM_TRADE_RETURN_DIFFERENCE_BPS 0.0
+  TRADE_MATCH_RATIO 1.0
+  PARITY_FILE 22a8bd49aaeaaf4cb5fb/pybroker_parity_rows.csv ROWS 358
+  MISMATCH_ROWS 0
+----------------------------------------------------------------------------------------------------
+ENGINE nautilus MODE FULL_ENGINE_REPLAY PARITY True TRADES 358.0
+  EXPECTED_TRADES 358.0
+  OBSERVED_TRADES 358.0
+  TRADE_COUNT_MATCH True
+  EXACT_SYMBOLS True
+  EXACT_TIMESTAMPS True
+  INTEGER_QUANTITY True
+  MAXIMUM_FILL_PRICE_RELATIVE_ERROR 1.7564943568332407e-11
+  MAXIMUM_TRADE_RETURN_DIFFERENCE_BPS 1.7609025348974686e-07
+  TRADE_MATCH_RATIO 1.0
+  PARITY_FILE 22a8bd49aaeaaf4cb5fb/nautilus_parity_rows.csv ROWS 358
+  MISMATCH_ROWS 0
+----------------------------------------------------------------------------------------------------
+ENGINE lean MODE ERROR PARITY False TRADES nan
+  ERROR RuntimeError: LEAN_LAUNCHER_FAILED (exit=1)
+STDOUT:
+20260817 22:38:16.499 TRACE:: Composer(): Loading Assemblies from /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/Lean/Launcher/bin/Release/
+20260817 22:38:16.524 TRACE:: Python for .NET Assembly: Python.Runtime, Version=2.0.64.0, Culture=neutral, PublicKeyToken=5000fea6cba702dd
+20260817 22:38:17.395 TRACE:: Engine.Main(): LEAN ALGORITHMIC TRADING ENGINE v2.5.0.0 Mode: RELEASE (64bit) Host: Mac
+20260817 22:38:17.400 TRACE:: Engine.Main(): Started 12:38 AM
+20260817 22:38:17.411 TRACE:: JobQueue.NextJob(): Selected /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/Lean/Algorithm.CSharp/bin/Release/QuantConnect.Algorithm.CSharp.dll
+20260817 22:38:17.458 TRACE:: AlgorithmManager.CreateTokenBucket(): Initializing LeakyBucket: Capacity: 120 RefillAmount: 18 TimeInterval: 1440
+20260817 22:38:17.465 TRACE:: Engine.Run(): Resource limits '0' CPUs. 2147483647 MB RAM.
+20260817 22:38:17.465 TRACE:: TextSubscriptionDataSourceReader.SetCacheSize(): Setting cache size to 71582788 items
+20260817 22:38:17.861 TRACE:: Loader.TryCreateILAlgorithm(): Loading debug information with algorithm
+20260817 22:38:17.898 TRACE:: JOB HANDLERS:
+         DataFeed:             QuantConnect.Lean.Engine.DataFeeds.FileSystemDataFeed
+         Setup:                QuantConnect.Lean.Engine.Setup.BacktestingSetupHandler
+         RealTime:             QuantConnect.Lean.Engine.RealTime.BacktestingRealTimeHandler
+         Results:              QuantConnect.Lean.Engine.Results.BacktestingResultHandler
+         Transactions:         QuantConnect.Lean.Engine.TransactionHandlers.BacktestingTransactionHandler
+         Object Store:         QuantConnect.Lean.Engine.Storage.LocalObjectStore
+         History Provider:     
+         Brokerage:            
+         Data Provider:        QuantConnect.Lean.Engine.DataFeeds.DefaultDataProvider
+
+20260817 22:38:17.898 TRACE:: BacktestingResultHandler.Exit(): starting...
+20260817 22:38:17.898 TRACE:: BacktestingResultHandler.Exit(): Saving logs...
+20260817 22:38:17.899 TRACE:: StopSafely(): Waiting for 'Result Thread' thread to stop...
+20260817 22:38:17.899 TRACE:: Debug: Your log was successfully created and can be retrieved from: /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/Lean/Launcher/bin/Release/CrossEngineReplayAlgorithmV2177-log.txt
+20260817 22:38:17.899 TRACE:: BacktestingResultHandler.Run(): Ending Thread...
+20260817 22:38:17.902 TRACE:: BacktestingResultHandler.CreateResultSummary(): 'Strategy Equity' chart not found
+20260817 22:38:17.964 TRACE:: 
+STATISTICS:: OrderListHash d41d8cd98f00b204e9800998ecf8427e
+20260817 22:38:17.964 TRACE:: BacktestingResultHandler.SendAnalysisResult(): Processed final packet
+20260817 22:38:17.964 TRACE:: Engine.Run(): Disposing of setup handler...
+20260817 22:38:17.964 TRACE:: Engine.Main(): Analysis Completed and Results Posted.
+Engine.Main(): Analysis Complete.
+Engine.Main(): Press any key to continue.
+20260817 22:38:56.615 TRACE:: Engine.Main(): Packet removed from queue: CrossEngineReplayAlgorithmV2177
+20260817 22:38:56.617 TRACE:: LeanEngineSystemHandlers.Dispose(): start...
+20260817 22:38:56.625 TRACE:: LeanEngineSystemHandlers.Dispose(): Disposed of system handlers.
+20260817 22:38:56.628 TRACE:: LeanEngineAlgorithmHandlers.Dispose(): start...
+20260817 22:38:56.629 TRACE:: LocalObjectStore.Dispose(): start...
+20260817 22:38:56.629 TRACE:: LocalObjectStore.Dispose(): end
+20260817 22:38:56.630 TRACE:: LeanEngineAlgorithmHandlers.Dispose(): Disposed of algorithm handlers.
+20260817 22:38:56.631 TRACE:: StopSafely(): Waiting for 'CpuPerformance' thread to stop...
+20260817 22:38:56.634 TRACE:: Program.Main(): Exiting Lean...
+STDERR:
+20260817 22:38:17.891 ERROR:: Loader.TryCreateILAlgorithm(): Algorithm type name not found, or unable to resolve multiple algorithm types to a single type. Please verify algorithm type name matches the algorithm name in the configuration file and that there is one and only one class derived from QCAlgorithm.
+20260817 22:38:17.897 ERROR:: Engine.Run():  QuantConnect.Lean.Engine.Setup.AlgorithmSetupException: During the algorithm initialization, the following exception has occurred: Algorithm type name not found, or unable to resolve multiple algorithm types to a single type. Please verify algorithm type name matches the algorithm name in the configuration file and that there is one and only one class derived from QCAlgorithm.
+   at QuantConnect.Lean.Engine.Setup.BacktestingSetupHandler.CreateAlgorithmInstance(AlgorithmNodePacket algorithmNodePacket, String assemblyPath) in Engine/Setup/BacktestingSetupHandler.cs:line 113
+   at QuantConnect.Lean.Engine.Engine.Run(AlgorithmNodePacket job, AlgorithmManager manager, String assemblyPath, WorkerThread workerThread) in Engine/Engine.cs:line 125
+20260817 22:38:17.899 ERROR:: Algorithm.Initialize() Error: During the algorithm initialization, the following exception has occurred: Algorithm type name not found, or unable to resolve multiple algorithm types to a single type. Please verify algorithm type name matches the algorithm name in the configuration file and that there is one and only one class derived from QCAlgorithm. Stack Trace: QuantConnect.Lean.Engine.Setup.AlgorithmSetupException: During the algorithm initialization, the following exception has occurred: Algorithm type name not found, or unable to resolve multiple algorithm types to a single type. Please verify algorithm type name matches the algorithm name in the configuration file and that there is one and only one class derived from QCAlgorithm.
+   at QuantConnect.Lean.Engine.Setup.BacktestingSetupHandler.CreateAlgorithmInstance(AlgorithmNodePacket algorithmNodePacket, String assemblyPath) in /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/Lean/Engine/Setup/BacktestingSetupHandler.cs:line 113
+   at QuantConnect.Lean.Engine.Engine.Run(AlgorithmNodePacket job, AlgorithmManager manager, String assemblyPath, WorkerThread workerThread) in /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/Lean/Engine/Engine.cs:line 125
+ QuantConnect.Lean.Engine.Setup.AlgorithmSetupException: During the algorithm initialization, the following exception has occurred: Algorithm type name not found, or unable to resolve multiple algorithm types to a single type. Please verify algorithm type name matches the algorithm name in the configuration file and that there is one and only one class derived from QCAlgorithm.
+   at QuantConnect.Lean.Engine.Setup.BacktestingSetupHandler.CreateAlgorithmInstance(AlgorithmNodePacket algorithmNodePacket, String assemblyPath) in /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/Lean/Engine/Setup/BacktestingSetupHandler.cs:line 113
+   at QuantConnect.Lean.Engine.Engine.Run(AlgorithmNodePacket job, AlgorithmManager manager, String assemblyPath, WorkerThread workerThread) in /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/Lean/Engine/Engine.cs:line 125
+20260817 22:38:17.958 ERROR:: BacktestingResultHandler.SendFinalResult(): Error running backtest analysis System.NullReferenceException: Object reference not set to an instance of an object.
+   at QuantConnect.Lean.Engine.Results.Analysis.Analyses.ParameterCountAnalysis.Run(QCAlgorithm algorithm, Language language) in Engine/Results/Analysis/Analyses/ParameterCountAnalysis.cs:line 67
+   at QuantConnect.Lean.Engine.Results.Analysis.Analyses.ParameterCountAnalysis.Run(ResultsAnalysisRunParameters parameters) in Engine/Results/Analysis/Analyses/ParameterCountAnalysis.cs:line 45
+   at QuantConnect.Lean.Engine.Results.Analysis.ResultsAnalyzer.Run(Int32 timeLimitSeconds, Int32 maxFailedAnalyses) in Engine/Results/Analysis/ResultsAnalyzer.cs:line 248
+   at QuantConnect.Lean.Engine.Results.BacktestingResultHandler.SendFinalResult() in Engine/Results/BacktestingResultHandler.cs:line 430
+====================================================================================================
+STRATEGY_SUMMARY
+       hypothesis_id           strategy                     status missing_engines non_validating_engines                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       engine_failures                                            blockers
+22a8bd49aaeaaf4cb5fb rsi_threshold_exit CROSS_ENGINE_NOT_VALIDATED              []               ['lean'] {'lean': ['FULL_ENGINE_REPLAY_REQUIRED', 'PARITY_FAILED', "ERROR:RuntimeError: LEAN_LAUNCHER_FAILED (exit=1)\nSTDOUT:\n20260817 22:38:16.499 TRACE:: Composer(): Loading Assemblies from /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/Lean/Launcher/bin/Release/\n20260817 22:38:16.524 TRACE:: Python for .NET Assembly: Python.Runtime, Version=2.0.64.0, Culture=neutral, PublicKeyToken=5000fea6cba702dd\n20260817 22:38:17.395 TRACE:: Engine.Main(): LEAN ALGORITHMIC TRADING ENGINE v2.5.0.0 Mode: RELEASE (64bit) Host: Mac\n20260817 22:38:17.400 TRACE:: Engine.Main(): Started 12:38\u202fAM\n20260817 22:38:17.411 TRACE:: JobQueue.NextJob(): Selected /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/Lean/Algorithm.CSharp/bin/Release/QuantConnect.Algorithm.CSharp.dll\n20260817 22:38:17.458 TRACE:: AlgorithmManager.CreateTokenBucket(): Initializing LeakyBucket: Capacity: 120 RefillAmount: 18 TimeInterval: 1440\n20260817 22:38:17.465 TRACE:: Engine.Run(): Resource limits '0' CPUs. 2147483647 MB RAM.\n20260817 22:38:17.465 TRACE:: TextSubscriptionDataSourceReader.SetCacheSize(): Setting cache size to 71582788 items\n20260817 22:38:17.861 TRACE:: Loader.TryCreateILAlgorithm(): Loading debug information with algorithm\n20260817 22:38:17.898 TRACE:: JOB HANDLERS:\n         DataFeed:             QuantConnect.Lean.Engine.DataFeeds.FileSystemDataFeed\n         Setup:                QuantConnect.Lean.Engine.Setup.BacktestingSetupHandler\n         RealTime:             QuantConnect.Lean.Engine.RealTime.BacktestingRealTimeHandler\n         Results:              QuantConnect.Lean.Engine.Results.BacktestingResultHandler\n         Transactions:         QuantConnect.Lean.Engine.TransactionHandlers.BacktestingTransactionHandler\n         Object Store:         QuantConnect.Lean.Engine.Storage.LocalObjectStore\n         History Provider:     \n         Brokerage:            \n         Data Provider:        QuantConnect.Lean.Engine.DataFeeds.DefaultDataProvider\n\n20260817 22:38:17.898 TRACE:: BacktestingResultHandler.Exit(): starting...\n20260817 22:38:17.898 TRACE:: BacktestingResultHandler.Exit(): Saving logs...\n20260817 22:38:17.899 TRACE:: StopSafely(): Waiting for 'Result Thread' thread to stop...\n20260817 22:38:17.899 TRACE:: Debug: Your log was successfully created and can be retrieved from: /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/Lean/Launcher/bin/Release/CrossEngineReplayAlgorithmV2177-log.txt\n20260817 22:38:17.899 TRACE:: BacktestingResultHandler.Run(): Ending Thread...\n20260817 22:38:17.902 TRACE:: BacktestingResultHandler.CreateResultSummary(): 'Strategy Equity' chart not found\n20260817 22:38:17.964 TRACE:: \nSTATISTICS:: OrderListHash d41d8cd98f00b204e9800998ecf8427e\n20260817 22:38:17.964 TRACE:: BacktestingResultHandler.SendAnalysisResult(): Processed final packet\n20260817 22:38:17.964 TRACE:: Engine.Run(): Disposing of setup handler...\n20260817 22:38:17.964 TRACE:: Engine.Main(): Analysis Completed and Results Posted.\nEngine.Main(): Analysis Complete.\nEngine.Main(): Press any key to continue.\n20260817 22:38:56.615 TRACE:: Engine.Main(): Packet removed from queue: CrossEngineReplayAlgorithmV2177\n20260817 22:38:56.617 TRACE:: LeanEngineSystemHandlers.Dispose(): start...\n20260817 22:38:56.625 TRACE:: LeanEngineSystemHandlers.Dispose(): Disposed of system handlers.\n20260817 22:38:56.628 TRACE:: LeanEngineAlgorithmHandlers.Dispose(): start...\n20260817 22:38:56.629 TRACE:: LocalObjectStore.Dispose(): start...\n20260817 22:38:56.629 TRACE:: LocalObjectStore.Dispose(): end\n20260817 22:38:56.630 TRACE:: LeanEngineAlgorithmHandlers.Dispose(): Disposed of algorithm handlers.\n20260817 22:38:56.631 TRACE:: StopSafely(): Waiting for 'CpuPerformance' thread to stop...\n20260817 22:38:56.634 TRACE:: Program.Main(): Exiting Lean...\nSTDERR:\n20260817 22:38:17.891 ERROR:: Loader.TryCreateILAlgorithm(): Algorithm type name not found, or unable to resolve multiple algorithm types to a single type. Please verify algorithm type name matches the algorithm name in the configuration file and that there is one and only one class derived from QCAlgorithm.\n20260817 22:38:17.897 ERROR:: Engine.Run():  QuantConnect.Lean.Engine.Setup.AlgorithmSetupException: During the algorithm initialization, the following exception has occurred: Algorithm type name not found, or unable to resolve multiple algorithm types to a single type. Please verify algorithm type name matches the algorithm name in the configuration file and that there is one and only one class derived from QCAlgorithm.\n   at QuantConnect.Lean.Engine.Setup.BacktestingSetupHandler.CreateAlgorithmInstance(AlgorithmNodePacket algorithmNodePacket, String assemblyPath) in Engine/Setup/BacktestingSetupHandler.cs:line 113\n   at QuantConnect.Lean.Engine.Engine.Run(AlgorithmNodePacket job, AlgorithmManager manager, String assemblyPath, WorkerThread workerThread) in Engine/Engine.cs:line 125\n20260817 22:38:17.899 ERROR:: Algorithm.Initialize() Error: During the algorithm initialization, the following exception has occurred: Algorithm type name not found, or unable to resolve multiple algorithm types to a single type. Please verify algorithm type name matches the algorithm name in the configuration file and that there is one and only one class derived from QCAlgorithm. Stack Trace: QuantConnect.Lean.Engine.Setup.AlgorithmSetupException: During the algorithm initialization, the following exception has occurred: Algorithm type name not found, or unable to resolve multiple algorithm types to a single type. Please verify algorithm type name matches the algorithm name in the configuration file and that there is one and only one class derived from QCAlgorithm.\n   at QuantConnect.Lean.Engine.Setup.BacktestingSetupHandler.CreateAlgorithmInstance(AlgorithmNodePacket algorithmNodePacket, String assemblyPath) in /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/Lean/Engine/Setup/BacktestingSetupHandler.cs:line 113\n   at QuantConnect.Lean.Engine.Engine.Run(AlgorithmNodePacket job, AlgorithmManager manager, String assemblyPath, WorkerThread workerThread) in /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/Lean/Engine/Engine.cs:line 125\n QuantConnect.Lean.Engine.Setup.AlgorithmSetupException: During the algorithm initialization, the following exception has occurred: Algorithm type name not found, or unable to resolve multiple algorithm types to a single type. Please verify algorithm type name matches the algorithm name in the configuration file and that there is one and only one class derived from QCAlgorithm.\n   at QuantConnect.Lean.Engine.Setup.BacktestingSetupHandler.CreateAlgorithmInstance(AlgorithmNodePacket algorithmNodePacket, String assemblyPath) in /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/Lean/Engine/Setup/BacktestingSetupHandler.cs:line 113\n   at QuantConnect.Lean.Engine.Engine.Run(AlgorithmNodePacket job, AlgorithmManager manager, String assemblyPath, WorkerThread workerThread) in /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/references/Lean/Engine/Engine.cs:line 125\n20260817 22:38:17.958 ERROR:: BacktestingResultHandler.SendFinalResult(): Error running backtest analysis System.NullReferenceException: Object reference not set to an instance of an object.\n   at QuantConnect.Lean.Engine.Results.Analysis.Analyses.ParameterCountAnalysis.Run(QCAlgorithm algorithm, Language language) in Engine/Results/Analysis/Analyses/ParameterCountAnalysis.cs:line 67\n   at QuantConnect.Lean.Engine.Results.Analysis.Analyses.ParameterCountAnalysis.Run(ResultsAnalysisRunParameters parameters) in Engine/Results/Analysis/Analyses/ParameterCountAnalysis.cs:line 45\n   at QuantConnect.Lean.Engine.Results.Analysis.ResultsAnalyzer.Run(Int32 timeLimitSeconds, Int32 maxFailedAnalyses) in Engine/Results/Analysis/ResultsAnalyzer.cs:line 248\n   at QuantConnect.Lean.Engine.Results.BacktestingResultHandler.SendFinalResult() in Engine/Results/BacktestingResultHandler.cs:line 430"]} ['LEAN_FULL_REPLAY_REQUIRED', 'LEAN_PARITY_FAILED']
+BROKER_CALLS 0
+ORDER_CALLS 0
+EXECUTION_AUTHORITY NONE
+ARTIFACT_ROOT /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/artifacts/research_runtime/cross_engine_strategy_validation_v2_17
+====================================================================================================
+RUN FOCUSED_TESTS
+COMMAND /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/bin/python -m pytest -q tests/test_cross_engine_adapter_compat_v2_17_2.py tests/test_cross_engine_completion_v2_17_5.py tests/test_cross_engine_fill_parity_v2_17_3.py tests/test_cross_engine_full_engine_v2_17_7.py tests/test_cross_engine_runtime_v2_17_4.py tests/test_cross_engine_runtime_v2_17_6.py tests/test_cross_engine_strategy_validation_v2_17.py tests/test_stocks_donor_integration_v2_17_1.py
+RESULT FOCUSED_TESTS 0
+====================================================================================================
+RUN COMPILEALL
+COMMAND /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/bin/python -m compileall -q src scripts
+RESULT COMPILEALL 0
+====================================================================================================
+RUN PIP_CHECK
+COMMAND /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/bin/python -m pip check
+RESULT PIP_CHECK 0
+====================================================================================================
+RUN GIT_DIFF_CHECK
+COMMAND git diff --check
+RESULT GIT_DIFF_CHECK 0
+====================================================================================================
+RUN FULL_TEST_SUITE
+COMMAND /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/bin/python -m pytest -q
+RESULT FULL_TEST_SUITE 0
+====================================================================================================
+RUN RUNTIME_AUDIT
+COMMAND /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/bin/python scripts/audit_cross_engine_runtime_v2_17.py
+RESULT RUNTIME_AUDIT 0
+====================================================================================================
+RUN CROSS_ENGINE_REPLAY
+COMMAND /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/bin/python scripts/run_cross_engine_strategy_validation_v2_17.py --limit-symbols 5
+RESULT CROSS_ENGINE_REPLAY 0
+====================================================================================================
+RUN DEEP_AUDIT
+COMMAND /Users/ayoubalhari/Downloads/stocks-quant-agent-final-2/.venv/bin/python scripts/audit_cross_engine_outputs_v2_17_4.py
+RESULT DEEP_AUDIT 0
+====================================================================================================
+V2_17_FINALIZATION CROSS_ENGINE_VALIDATED False
+WHOLE_SHARES_ONLY True
+FIXED_EURO_ORDER_CAP False
+BROKER_CALLS 0
+ORDER_CALLS 0
+EXECUTION_AUTHORITY NONE
