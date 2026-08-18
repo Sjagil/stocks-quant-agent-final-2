@@ -1,4 +1,4 @@
-# Stocks Quant Agent Final — v0.4.0
+# Stocks Quant Agent Final — v0.4.3
 
 A stocks / ETFs / commodity-proxy active-swing **research platform** with canonical market data, isolated external-research engines and an execution-neutral `TradeIntent` boundary.
 
@@ -19,6 +19,40 @@ TradeIntent (execution_authority = NONE)
         ↓
 EXISTING external risk + broker authority
 ```
+
+## v0.4.3: v2.18 validated-strategy handoff
+
+v2.18 converts the completed v2.17 cross-engine replay into an immutable,
+fail-closed research handoff. A strategy is registered only when the configured
+scope is exact and Native, PyBroker, NautilusTrader and LEAN all report
+`FULL_ENGINE_REPLAY` with parity on the same canonical packet and bar hashes.
+
+The handoff records SHA-256 hashes for the validation configuration, summaries,
+audits, canonical schedules, ledgers and parity rows. Any missing engine,
+partial replay, blocker, changed hash, missing evidence file, broker call, order
+call or non-`NONE` authority rejects the build.
+
+Build and independently verify the handoff from existing v2.17 evidence:
+
+```bash
+python scripts/build_cross_engine_handoff_v2_18.py
+python scripts/audit_cross_engine_handoff_v2_18.py
+```
+
+Run the complete v2.18 gate, optionally refreshing v2.17 first:
+
+```bash
+python scripts/run_cross_engine_finalization_v2_18.py --full-tests
+python scripts/run_cross_engine_finalization_v2_18.py \
+  --refresh-v2-17 \
+  --limit-symbols 5 \
+  --full-tests
+```
+
+Outputs are written below
+`artifacts/research_runtime/cross_engine_handoff_v2_18/` and remain
+research-only. v2.18 does not grant broker authority or automatic live
+promotion.
 
 ## v0.4.0: integration foundation
 

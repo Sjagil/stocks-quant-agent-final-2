@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.3
+
+- Add the v2.18 fail-closed handoff for strategies validated by Native,
+  PyBroker, NautilusTrader and LEAN full-engine replay.
+- Require exact configured strategy and engine coverage, full parity, shared
+  canonical packet/bar hashes, frozen parameters and whole-share replay.
+- Hash every source configuration, summary, audit, schedule, ledger and parity
+  file into an independently verifiable evidence manifest.
+- Add a standalone builder, verifier and finalization runner for v2.18.
+- Add a focused GitHub Actions gate for the v2.18 contract and failure cases.
+- Remove accidentally committed local finalization logs and ignore future
+  generated v2 logs.
+- Preserve zero broker calls, zero order calls, no automatic live promotion and
+  `execution_authority = NONE` throughout the handoff.
+
 ## 0.4.2
 
 - Treat FinRL `finnhub` as a truly optional data-source dependency; missing Finnhub no longer downgrades an otherwise healthy FinRL runtime.
