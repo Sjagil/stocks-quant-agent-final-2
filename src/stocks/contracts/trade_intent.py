@@ -5,6 +5,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
+SHA256_LENGTH = 64
+
 
 class IntentAction(str, Enum):
     INCREASE = "INCREASE"
@@ -32,6 +34,7 @@ class TradeIntent:
     execution_authority: str = "NONE"
     rationale: tuple[str, ...] = ()
     metadata: dict[str, Any] = field(default_factory=dict)
+    intent_id: str | None = None
 
     def __post_init__(self) -> None:
         if self.execution_authority != "NONE":
@@ -42,3 +45,10 @@ class TradeIntent:
             raise ValueError("target_notional_eur cannot be negative")
         if not 0.0 <= self.confidence <= 1.0:
             raise ValueError("confidence must be between 0 and 1")
+        if self.intent_id is not None:
+            normalized = self.intent_id.strip().lower()
+            if len(normalized) != SHA256_LENGTH or any(
+                character not in "0123456789abcdef" for character in normalized
+            ):
+                raise ValueError("intent_id must be a SHA-256 hex digest")
+            object.__setattr__(self, "intent_id", normalized)
