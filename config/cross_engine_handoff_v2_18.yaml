@@ -1,0 +1,22 @@
+schema: cross_engine_validated_handoff_v2_18
+
+source:
+  validation_config: config/cross_engine_strategy_validation_v2_17.yaml
+  validation_config_schema: cross_engine_strategy_validation_v2_17
+  validation_root: artifacts/research_runtime/cross_engine_strategy_validation_v2_17
+  validation_audit_schema: cross_engine_strategy_validation_audit_v2_17
+  packet_audit_schema: canonical_cross_engine_replay_packet_v2_17
+
+handoff:
+  required_validation_status: CROSS_ENGINE_VALIDATED
+  required_engine_mode: FULL_ENGINE_REPLAY
+  required_engine_parity: true
+  require_exact_configured_scope: true
+  require_immutable_evidence: true
+  require_parameters_frozen: true
+  require_whole_shares_only: true
+  fractional_shares_allowed: false
+  automatic_live_promotion: false
+  broker_calls: 0
+  order_calls: 0
+  execution_authority: NONE

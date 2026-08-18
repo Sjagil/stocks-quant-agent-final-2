@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import json
@@ -13,6 +12,12 @@ import pandas as pd
 from stocks.providers.eodhd import EODHD_BASE_URL
 from stocks.providers.env import load_project_env, secret
 from stocks.providers.http import ProviderHTTPClient
+from stocks.research.sec_fundamentals import (
+    DEFAULT_FORMS,
+    fetch_sec_fundamentals,
+    fetch_ticker_map,
+    sec_user_agent,
+)
 from stocks.research.shariah_research_precheck import business_precheck
 
 
@@ -80,7 +85,6 @@ def _latest_report(
         except Exception:
             continue
 
-        # PIT rule: the report may only exist for a decision after filing.
         if filing_date <= decision_date:
             eligible.append((filing_date, report_date, row))
 
@@ -263,9 +267,7 @@ def evaluate_financials(
             ),
         )
 
-    market_cap = _number(
-        highlights.get("MarketCapitalization")
-    )
+    market_cap = _number(highlights.get("MarketCapitalization"))
     if market_cap is None:
         market_cap_mln = _number(
             highlights.get("MarketCapitalizationMln")
@@ -318,16 +320,14 @@ def evaluate_financials(
     short_debt = _number(
         report.get("shortTermDebt")
         or report.get("shortLongTermDebt")
-    ) or 0.0
-    long_debt = _number(
-        report.get("longTermDebt")
-    ) or 0.0
+    )
+    long_debt = _number(report.get("longTermDebt"))
 
     cash = _number(
         report.get("cashAndShortTermInvestments")
         or report.get("cashAndEquivalents")
         or report.get("cash")
-    ) or 0.0
+    )
 
     receivables = _number(
         report.get("netReceivables")
@@ -335,13 +335,66 @@ def evaluate_financials(
         or report.get("accountsReceivable")
     )
 
-    debt_ratio = (short_debt + long_debt) / market_cap
-    cash_ratio = cash / market_cap
-    receivables_ratio = (
-        receivables / market_cap
-        if receivables is not None
-        else None
-    )
+    # Never treat unavailable accounting data as zero.
+    if short_debt is None and long_debt is None:
+        return ShariahVerification(
+            symbol=symbol,
+            status="SHARIAH_DATA_INCOMPLETE",
+            business_status=precheck["status"],
+            financial_ratio_status="DATA_INCOMPLETE",
+            verified_attestation=False,
+            trade_eligible=False,
+            debt_to_market_cap=None,
+            cash_to_market_cap=None,
+            receivables_to_market_cap=None,
+            market_cap=market_cap,
+            report_date=str(report.get("date") or "") or None,
+            filing_date=str(
+                report.get("filing_date")
+                or report.get("filingDate")
+                or report.get("date")
+                or ""
+            ) or None,
+            methodology=None,
+            attestation_source=None,
+            reason_codes=("MISSING_DEBT_FACTS",),
+        )
+
+    if cash is None or receivables is None:
+        missing = []
+        if cash is None:
+            missing.append("MISSING_CASH_FACTS")
+        if receivables is None:
+            missing.append("MISSING_RECEIVABLES_FACTS")
+        return ShariahVerification(
+            symbol=symbol,
+            status="SHARIAH_DATA_INCOMPLETE",
+            business_status=precheck["status"],
+            financial_ratio_status="DATA_INCOMPLETE",
+            verified_attestation=False,
+            trade_eligible=False,
+            debt_to_market_cap=None,
+            cash_to_market_cap=None,
+            receivables_to_market_cap=None,
+            market_cap=market_cap,
+            report_date=str(report.get("date") or "") or None,
+            filing_date=str(
+                report.get("filing_date")
+                or report.get("filingDate")
+                or report.get("date")
+                or ""
+            ) or None,
+            methodology=None,
+            attestation_source=None,
+            reason_codes=tuple(missing),
+        )
+
+    debt_ratio = (
+        float(short_debt or 0.0)
+        + float(long_debt or 0.0)
+    ) / market_cap
+    cash_ratio = float(cash) / market_cap
+    receivables_ratio = float(receivables) / market_cap
 
     ratio_failures: list[str] = []
 
@@ -353,10 +406,8 @@ def evaluate_financials(
     ):
         ratio_failures.append("CASH_RATIO")
 
-    if (
-        receivables_ratio is not None
-        and receivables_ratio
-        > float(policy["receivables_to_market_cap_max"])
+    if receivables_ratio > float(
+        policy["receivables_to_market_cap_max"]
     ):
         ratio_failures.append("RECEIVABLES_RATIO")
 
@@ -417,8 +468,6 @@ def evaluate_financials(
         else None
     )
 
-    # The project's ratio pre-screen is not itself a religious certification.
-    # Live eligibility remains fail-closed behind an explicit attestation.
     status = (
         "SHARIAH_ELIGIBLE_VERIFIED"
         if verified
@@ -451,42 +500,86 @@ def evaluate_financials(
     )
 
 
-def run_verification(
-    project_root: str | Path,
-    *,
-    symbols: list[str],
-    as_of: str,
-) -> tuple[pd.DataFrame, dict[str, Any]]:
-    root = Path(project_root).resolve()
+def _policy(root: Path) -> dict[str, Any]:
+    v28 = root / "config/final_decision_fabric_v2_8.json"
+    if v28.is_file():
+        return json.loads(v28.read_text(encoding="utf-8"))["shariah"]
 
-    policy = json.loads(
+    return json.loads(
         (
             root
             / "config/final_decision_fabric_v2_7.json"
         ).read_text(encoding="utf-8")
     )["shariah"]
 
+
+def _incomplete_row(
+    symbol: str,
+    *,
+    provider_errors: list[str],
+) -> dict[str, Any]:
+    return {
+        "symbol": symbol,
+        "status": "SHARIAH_DATA_INCOMPLETE",
+        "business_status": "UNKNOWN",
+        "financial_ratio_status": "DATA_INCOMPLETE",
+        "verified_attestation": False,
+        "trade_eligible": False,
+        "debt_to_market_cap": None,
+        "cash_to_market_cap": None,
+        "receivables_to_market_cap": None,
+        "market_cap": None,
+        "report_date": None,
+        "filing_date": None,
+        "methodology": None,
+        "attestation_source": None,
+        "reason_codes": tuple(provider_errors),
+        "fundamentals_source": None,
+        "provider_error": " | ".join(provider_errors),
+        "execution_authority": "NONE",
+    }
+
+
+def run_verification(
+    project_root: str | Path,
+    *,
+    symbols: list[str],
+    as_of: str,
+    market_caps: dict[str, float] | None = None,
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    root = Path(project_root).resolve()
+    policy = _policy(root)
     decision_date = pd.Timestamp(as_of).date()
     attestations = load_attestations(root)
+    caps = {
+        str(key).upper(): float(value)
+        for key, value in (market_caps or {}).items()
+        if _number(value) is not None
+    }
 
     load_project_env(root)
-    api_key = secret(
+    eodhd_key = secret(
         "EODHD_API_KEY",
         "EOD_API_KEY",
         "EODHISTORICALDATA_API_KEY",
     )
 
-    if not api_key:
-        raise ValueError(
-            "EODHD API key is required for financial verification"
+    allowed_forms = set(
+        policy.get(
+            "sec_allowed_forms",
+            sorted(DEFAULT_FORMS),
         )
+    )
 
-    rows = []
+    rows: list[dict[str, Any]] = []
+    source_counts: dict[str, int] = {}
+    ticker_map: dict[str, int] | None = None
+    ticker_map_error: str | None = None
 
     with ProviderHTTPClient(
         user_agent=(
             "stocks-quant-agent/"
-            "shariah-financial-verification-v2.7"
+            "shariah-financial-verification-v2.8"
         )
     ) as client:
         for symbol in sorted(
@@ -496,75 +589,127 @@ def run_verification(
                 if str(item).strip()
             }
         ):
-            try:
-                payload = fetch_fundamentals(
+            errors: list[str] = []
+            row: dict[str, Any] | None = None
+
+            if eodhd_key and bool(policy.get("eodhd_first", True)):
+                try:
+                    payload = fetch_fundamentals(
+                        symbol,
+                        api_key=eodhd_key,
+                        client=client,
+                    )
+                    result = evaluate_financials(
+                        symbol,
+                        payload,
+                        decision_date=decision_date,
+                        policy=policy,
+                        attestation=attestations.get(symbol),
+                    )
+
+                    # If EODHD actually supplied usable accounting data, keep it.
+                    if result.status != "SHARIAH_DATA_INCOMPLETE":
+                        row = result.to_dict()
+                        row["fundamentals_source"] = "EODHD_FUNDAMENTALS"
+                        row["provider_error"] = None
+                    else:
+                        errors.append(
+                            "EODHD_INCOMPLETE:"
+                            + ",".join(result.reason_codes)
+                        )
+                except Exception as exc:
+                    errors.append(
+                        f"EODHD:{type(exc).__name__}:{exc}"
+                    )
+            elif not eodhd_key:
+                errors.append("EODHD:API_KEY_NOT_CONFIGURED")
+
+            if row is None and bool(policy.get("sec_fallback", True)):
+                try:
+                    if ticker_map is None and ticker_map_error is None:
+                        try:
+                            ticker_map = fetch_ticker_map(
+                                client,
+                                user_agent=sec_user_agent(),
+                            )
+                        except Exception as exc:
+                            ticker_map_error = (
+                                f"{type(exc).__name__}:{exc}"
+                            )
+
+                    if ticker_map is None:
+                        raise ValueError(
+                            "SEC ticker map unavailable: "
+                            + str(ticker_map_error)
+                        )
+
+                    sec_payload, provenance = fetch_sec_fundamentals(
+                        symbol,
+                        decision_date=decision_date,
+                        market_cap=caps.get(symbol),
+                        ticker_map=ticker_map,
+                        client=client,
+                        user_agent=sec_user_agent(),
+                        allowed_forms=allowed_forms,
+                    )
+                    result = evaluate_financials(
+                        symbol,
+                        sec_payload,
+                        decision_date=decision_date,
+                        policy=policy,
+                        attestation=attestations.get(symbol),
+                    )
+                    row = result.to_dict()
+                    row["fundamentals_source"] = "SEC_COMPANYFACTS"
+                    row["provider_error"] = (
+                        " | ".join(errors)
+                        if errors
+                        else None
+                    )
+                    row["fundamentals_provenance"] = json.dumps(
+                        provenance,
+                        sort_keys=True,
+                        default=str,
+                    )
+                except Exception as exc:
+                    errors.append(
+                        f"SEC:{type(exc).__name__}:{exc}"
+                    )
+
+            if row is None:
+                row = _incomplete_row(
                     symbol,
-                    api_key=api_key,
-                    client=client,
+                    provider_errors=errors,
                 )
-                result = evaluate_financials(
-                    symbol,
-                    payload,
-                    decision_date=decision_date,
-                    policy=policy,
-                    attestation=attestations.get(symbol),
-                )
-                row = result.to_dict()
-            except Exception as exc:
-                row = {
-                    "symbol": symbol,
-                    "status": "SHARIAH_DATA_INCOMPLETE",
-                    "business_status": "UNKNOWN",
-                    "financial_ratio_status": "DATA_INCOMPLETE",
-                    "verified_attestation": False,
-                    "trade_eligible": False,
-                    "debt_to_market_cap": None,
-                    "cash_to_market_cap": None,
-                    "receivables_to_market_cap": None,
-                    "market_cap": None,
-                    "report_date": None,
-                    "filing_date": None,
-                    "methodology": None,
-                    "attestation_source": None,
-                    "reason_codes": (
-                        f"{type(exc).__name__}:{exc}",
-                    ),
-                    "execution_authority": "NONE",
-                }
+
+            source = str(row.get("fundamentals_source") or "NONE")
+            source_counts[source] = source_counts.get(source, 0) + 1
             rows.append(row)
 
     frame = pd.DataFrame(rows)
 
-    audit = {
-        "schema": "shariah_financial_verification_v2_7",
-        "symbols": int(len(frame)),
-        "verified_trade_eligible": int(
-            frame.get(
-                "trade_eligible",
-                pd.Series(dtype=bool),
-            )
-            .fillna(False)
-            .astype(bool)
-            .sum()
-        )
+    verified = (
+        frame.get("trade_eligible", pd.Series(dtype=bool))
+        .fillna(False)
+        .astype(bool)
         if not frame.empty
-        else 0,
+        else pd.Series(dtype=bool)
+    )
+
+    audit = {
+        "schema": "shariah_financial_verification_v2_8",
+        "symbols": int(len(frame)),
+        "verified_trade_eligible": int(verified.sum()),
         "financial_pass_pending_attestation": int(
             (
-                frame.get(
-                    "status",
-                    pd.Series(dtype=str),
-                )
+                frame.get("status", pd.Series(dtype=str))
                 == "FINANCIAL_SCREEN_PASS_ATTESTATION_REQUIRED"
             ).sum()
         )
         if not frame.empty
         else 0,
         "ineligible": int(
-            frame.get(
-                "status",
-                pd.Series(dtype=str),
-            )
+            frame.get("status", pd.Series(dtype=str))
             .astype(str)
             .str.startswith("SHARIAH_INELIGIBLE")
             .sum()
@@ -573,16 +718,15 @@ def run_verification(
         else 0,
         "data_incomplete": int(
             (
-                frame.get(
-                    "status",
-                    pd.Series(dtype=str),
-                )
+                frame.get("status", pd.Series(dtype=str))
                 == "SHARIAH_DATA_INCOMPLETE"
             ).sum()
         )
         if not frame.empty
         else 0,
+        "fundamentals_sources": source_counts,
         "financial_screen_grants_live_eligibility": False,
+        "sec_fallback_enabled": bool(policy.get("sec_fallback", True)),
         "execution_authority": "NONE",
         "broker_calls": 0,
         "order_calls": 0,
