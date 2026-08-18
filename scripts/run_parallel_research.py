@@ -29,6 +29,7 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=150)
     parser.add_argument("--skip-context", action="store_true")
     parser.add_argument("--skip-indicators", action="store_true")
+    parser.add_argument("--skip-generated-strategies", action="store_true")
     args = parser.parse_args()
 
     jobs: list[tuple[str, list[str]]] = []
@@ -39,6 +40,11 @@ def main() -> int:
         jobs.append(("contextual_discovery", command))
     if not args.skip_indicators:
         jobs.append(("indicator_discovery", [sys.executable, "scripts/run_indicator_strategy_discovery.py"]))
+    if not args.skip_generated_strategies:
+        jobs.append((
+            "strategy_generation_v2_22",
+            [sys.executable, "scripts/run_strategy_generation_v2_22.py"],
+        ))
 
     with ThreadPoolExecutor(max_workers=max(1, len(jobs))) as executor:
         futures = [executor.submit(_run, name, command) for name, command in jobs]
@@ -70,6 +76,7 @@ def main() -> int:
         "registry": {key: value for key, value in registry.items() if key not in {"stdout", "stderr"}},
         "context_failure_does_not_block_indicator_research": True,
         "indicator_failure_does_not_escalate_authority": True,
+        "generated_strategy_failure_does_not_escalate_authority": True,
         "execution_authority": "NONE",
     }
     (audit_root / "audit.json").write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")

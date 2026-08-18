@@ -70,6 +70,9 @@ def _survivor_trades() -> pd.DataFrame:
             ROOT
             / "artifacts/research_runtime/indicator_discovery_1h/"
             "survivor_trades.parquet",
+            ROOT
+            / "artifacts/research_runtime/strategy_generation_v2_22/"
+            "survivor_trades.parquet",
         ),
     )
 
@@ -86,16 +89,26 @@ def main() -> int:
     parser.add_argument("--symbols")
     parser.add_argument("--limit-symbols", type=int, default=0)
     parser.add_argument(
+        "--config",
+        default=str(
+            ROOT / "config/cross_engine_strategy_validation_v2_17.yaml"
+        ),
+    )
+    parser.add_argument(
+        "--output-root",
+        default=str(
+            ROOT
+            / "artifacts/research_runtime/"
+            "cross_engine_strategy_validation_v2_17"
+        ),
+    )
+    parser.add_argument(
         "--engines",
         default="native,pybroker,nautilus,lean",
     )
     args = parser.parse_args()
 
-    config = yaml.safe_load(
-        (
-            ROOT / "config/cross_engine_strategy_validation_v2_17.yaml"
-        ).read_text(encoding="utf-8")
-    )
+    config = yaml.safe_load(Path(args.config).read_text(encoding="utf-8"))
     parity_cfg = config["parity"]
     canonical_cfg = config["canonical_contract"]
     promotion_cfg = config["promotion"]
@@ -156,11 +169,7 @@ def main() -> int:
         "lean": "lean_reference",
     }
 
-    output_root = (
-        ROOT
-        / "artifacts/research_runtime/"
-        "cross_engine_strategy_validation_v2_17"
-    )
+    output_root = Path(args.output_root).resolve()
     output_root.mkdir(parents=True, exist_ok=True)
 
     strategy_rows = []

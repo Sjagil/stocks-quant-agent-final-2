@@ -1,0 +1,58 @@
+schema: strategy_generation_policy_v2_22
+
+symbols:
+  - AAPL
+  - AMD
+  - MSFT
+  - NVDA
+  - SPY
+  - QQQ
+  - GLD
+  - SLV
+  - CPER
+
+strategies:
+  - dual_horizon_momentum
+  - keltner_volume_breakout
+  - efficiency_ratio_breakout
+  - chaikin_flow_breakout
+  - atr_pullback_resume
+  - range_contraction_expansion
+  - gap_recovery_trend
+  - aroon_persistence
+  - breakout_retest_volume
+
+generation:
+  max_variants_per_blueprint: 24
+  seed: 20260818
+
+walk_forward:
+  folds: 4
+  purge_bars: 126
+  top_per_family_per_fold: 2
+
+costs:
+  base_bps_per_side: 3.0
+  stress_bps_per_side: 10.0
+
+selection:
+  min_train_trades: 24
+  min_valid_trades: 10
+  min_test_trades: 10
+  min_traded_symbols: 4
+  min_positive_symbol_ratio: 0.50
+  max_symbol_trade_share: 0.55
+  max_forced_trade_ratio: 0.50
+
+diversity:
+  maximum_validation_queue: 8
+  maximum_per_family: 1
+  entry_jaccard_limit: 0.50
+  pnl_correlation_limit: 0.80
+
+promotion:
+  route: NATIVE_PYBROKER_NAUTILUS_LEAN_REQUIRED
+  dynamic_universe_generalization_required: true
+  automatic_finalist_promotion: false
+  automatic_live_promotion: false
+  execution_authority: NONE

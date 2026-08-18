@@ -7,7 +7,13 @@ import pandas as pd
 
 from stocks.research.validation_policy import promotion_from_evidence
 
-SURVIVOR_STATUSES = {"SURVIVOR", "PROVISIONAL_SURVIVOR", "STRONG_SURVIVOR"}
+SURVIVOR_STATUSES = {
+    "SURVIVOR",
+    "PROVISIONAL_SURVIVOR",
+    "STRONG_SURVIVOR",
+    "DIVERSE_SURVIVOR",
+    "DIVERSE_STRONG_SURVIVOR",
+}
 
 
 def _read_optional_csv(path: Path) -> pd.DataFrame:
@@ -39,9 +45,14 @@ def build_research_candidate_registry(project_root: Path) -> tuple[pd.DataFrame,
     generalization_path = project_root / "artifacts/research_runtime/dynamic_universe_generalization/summary.csv"
     mtf_path = project_root / "artifacts/research_runtime/multitimeframe_strategy_research_v2_15_1/survivors.csv"
     kronos_path = project_root / "artifacts/research_runtime/kronos_strategy_research_v2_15/survivors.csv"
+    generated_path = project_root / "artifacts/research_runtime/strategy_generation_v2_22/validation_queue.csv"
+    cross_engine_path = project_root / "artifacts/research_runtime/cross_engine_strategy_validation_v2_17/strategy_summary.csv"
+    generated_cross_engine_path = project_root / "artifacts/research_runtime/strategy_generation_v2_22/cross_engine/strategy_summary.csv"
 
     indicator_cross = _records(indicator_cross_path)
     generalization = _records(generalization_path)
+    cross_engine = _records(cross_engine_path)
+    cross_engine.update(_records(generated_cross_engine_path))
     rows: list[dict] = []
 
     for _, item in validated.iterrows():
@@ -105,6 +116,63 @@ def build_research_candidate_registry(project_root: Path) -> tuple[pd.DataFrame,
                     "generalization_status": general_status,
                     "generalization_reasons": general.get("generalization_reasons", ""),
                     "dynamic_universe_generalized": general_status == "DYNAMIC_UNIVERSE_VALIDATED",
+                    "execution_authority": "NONE",
+                }
+            )
+
+    if generated_path.is_file():
+        generated = _read_optional_csv(generated_path)
+        for _, item in generated.iterrows():
+            if str(item.get("status")) not in SURVIVOR_STATUSES:
+                continue
+            hypothesis_id = str(item["hypothesis_id"])
+            cross = cross_engine.get(hypothesis_id, {})
+            general = generalization.get(hypothesis_id, {})
+            cross_status = str(cross.get("status") or "PENDING")
+            general_status = str(
+                general.get("generalization_status") or "PENDING"
+            )
+            stage = promotion_from_evidence(
+                existing_stage="VALIDATION_QUEUE",
+                crosscheck_status=cross_status,
+                generalization_status=general_status,
+            )
+            rows.append(
+                {
+                    "hypothesis_id": hypothesis_id,
+                    "strategy": item["strategy"],
+                    "family": item["family"],
+                    "params_json": item["params_json"],
+                    "source_engine": item.get(
+                        "source_engine", "strategy_generation_v2_22"
+                    ),
+                    "research_status": item["status"],
+                    "validation_status": (
+                        "VALIDATED"
+                        if cross_status == "CROSS_ENGINE_VALIDATED"
+                        else "REJECTED"
+                        if cross_status == "CROSS_ENGINE_NOT_VALIDATED"
+                        else "PENDING"
+                    ),
+                    "promotion_stage": stage,
+                    "validation_route": item.get(
+                        "validation_route",
+                        "NATIVE_PYBROKER_NAUTILUS_LEAN_REQUIRED",
+                    ),
+                    "execution_contract": item.get(
+                        "execution_contract", "NEXT_OPEN_REPLAY"
+                    ),
+                    "cross_engine_status": cross_status,
+                    "cross_engine_validated": (
+                        cross_status == "CROSS_ENGINE_VALIDATED"
+                    ),
+                    "generalization_status": general_status,
+                    "generalization_reasons": general.get(
+                        "generalization_reasons", ""
+                    ),
+                    "dynamic_universe_generalized": (
+                        general_status == "DYNAMIC_UNIVERSE_VALIDATED"
+                    ),
                     "execution_authority": "NONE",
                 }
             )
@@ -207,6 +275,17 @@ def build_research_candidate_registry(project_root: Path) -> tuple[pd.DataFrame,
         "generalization_present": generalization_path.is_file(),
         "multitimeframe_survivors_present": mtf_path.is_file(),
         "kronos_survivors_present": kronos_path.is_file(),
+        "generated_strategy_queue_present": generated_path.is_file(),
+        "generated_strategy_queue_count": (
+            int(
+                (
+                    frame.get("source_engine", pd.Series(dtype=str))
+                    == "strategy_generation_v2_22"
+                ).sum()
+            )
+            if not frame.empty
+            else 0
+        ),
         "automatic_live_promotion": False,
         "execution_authority": "NONE",
         "broker_calls": 0,

@@ -335,6 +335,40 @@ Promotion remains blocked until the full ten-seed evidence passes every gate,
 including explicit regime coverage. Passing the research gate still does not
 grant live execution authority.
 
+## Strategy generation and diversity lab
+
+v2.22 expands research beyond the two currently cross-engine validated RSI and
+OBV strategies. It adds nine separate 1h research families:
+
+- multi-horizon momentum;
+- Keltner and volume breakouts;
+- Kaufman efficiency-ratio trends;
+- Chaikin money-flow confirmation;
+- ATR-normalized pullback resumptions;
+- range contraction and expansion;
+- opening-gap recovery;
+- Aroon trend persistence;
+- breakout and retest market structure.
+
+Generate the deterministic catalog without market data:
+
+```bash
+python scripts/run_strategy_generation_v2_22.py --catalog-only
+```
+
+Run the full purged walk-forward research round on the configured nine-symbol
+development universe:
+
+```bash
+python scripts/run_strategy_research_finalization_v2_22.py --full-tests
+```
+
+The runner evaluates train, validation, stressed validation, and untouched test
+segments. Candidates must also pass symbol-breadth, trade-concentration,
+forced-exit, complexity, family-cap, and redundancy gates. Passing candidates
+enter a cross-engine validation queue. They are not finalists and they receive
+no broker or live execution authority.
+
 ## Tests
 
 v0.4 adds deterministic tests for:
