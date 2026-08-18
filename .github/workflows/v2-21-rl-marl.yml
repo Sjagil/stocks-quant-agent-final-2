@@ -1,0 +1,59 @@
+name: v2.21 RL and MARL gate
+
+on:
+  pull_request:
+    paths:
+      - "src/stocks/rl/*v2_21.py"
+      - "src/stocks/rl/__init__.py"
+      - "tests/test_rl_marl_v2_21.py"
+      - "pyproject.toml"
+      - ".github/workflows/v2-21-rl-marl.yml"
+  push:
+    branches:
+      - "feature/rl-marl-v2-21"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v2-21-rl-marl-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rl-marl-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install focused research dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install numpy pytest ruff
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install --no-deps -e .
+      - name: Compile and lint v2.21
+        run: |
+          python -m compileall -q src/stocks/rl
+          python -m ruff check \
+            src/stocks/rl/__init__.py \
+            src/stocks/rl/contracts_v2_21.py \
+            src/stocks/rl/portfolio_environment_v2_21.py \
+            src/stocks/rl/mappo_v2_21.py \
+            src/stocks/rl/matd3_v2_21.py \
+            src/stocks/rl/research_automation_v2_21.py \
+            src/stocks/rl/validation_v2_21.py \
+            tests/test_rl_marl_v2_21.py
+      - name: Run v2.21 and backward-compatibility tests
+        run: |
+          python -m pytest -q \
+            tests/test_rl_marl_v2_21.py \
+            tests/test_rl_rewards.py \
+            tests/test_rl_walk_forward_v2.py \
+            tests/test_rl_promotion.py \
+            tests/test_agent_fabric_v2_12.py \
+            tests/test_trade_intent.py

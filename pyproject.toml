@@ -31,7 +31,12 @@ dependencies = [
 [project.optional-dependencies]
 portfolio = ["cvxpy>=1.5"]
 nlp = ["transformers>=4.40", "torch>=2.2"]
-rl = ["gymnasium>=0.29", "stable-baselines3>=2.3", "tensorboard>=2.16"]
+rl = [
+  "gymnasium>=0.29",
+  "stable-baselines3>=2.3",
+  "tensorboard>=2.16",
+  "torch>=2.2",
+]
 research = [
   "optuna>=4,<5",
   "skfolio>=0.12,<1",
