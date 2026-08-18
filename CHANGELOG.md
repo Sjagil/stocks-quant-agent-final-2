@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.4
+
+- Add a v2.19 fail-closed deployment bridge between the immutable v2.18
+  cross-engine handoff and the forward-signal engine.
+- Freeze and hash the exact strategy parameter payload used by each deployed
+  research signal adapter.
+- Require exact RSI and OBV deployment coverage, finalist status, source
+  fingerprints and zero execution authority before any forward signal can be
+  marked ready.
+- Add deterministic, atomic and idempotent deployment outputs with stale-lock
+  recovery and overlap rejection.
+- Add one-command build, audit, signal and finalization runners plus a weekday
+  GitHub Actions contract schedule.
+- Preserve zero broker calls, zero order calls, no automatic live promotion and
+  `execution_authority = NONE` throughout the automation layer.
+
 ## 0.4.3
 
 - Add the v2.18 fail-closed handoff for strategies validated by Native,

@@ -5,10 +5,11 @@ import math
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import pandas as pd
 
-from stocks.intelligence_agent.strategy_combo_research_lab import FeatureCache
+from stocks.intelligence_agent.strategy_combo_research_lab import (
+    FeatureCache,
+)
 from stocks.research.dynamic_universe_generalization import (
     discover_interval_sources,
 )
@@ -19,7 +20,6 @@ from stocks.research.indicator_discovery import (
 from stocks.research.strategy_factory_1h import (
     prepare_one_hour_frame,
 )
-
 
 SUPPORTED_NEXT_OPEN_STRATEGIES = frozenset(
     {
@@ -163,23 +163,43 @@ def evaluate_latest_entry_condition(
 def build_forward_trigger_map(
     project_root: str | Path,
     matrix: pd.DataFrame,
+    *,
+    strategy_registry: pd.DataFrame | None = None,
+    required_status_column: str = "roster_status",
+    required_status: str = "BROADLY_VALIDATED_FINALIST",
 ) -> dict[tuple[str, str], dict[str, Any]]:
     root = Path(project_root).resolve()
-    roster_path = (
-        root
-        / "artifacts/research_runtime/"
-        "final_strategy_roster/roster.csv"
-    )
+    if strategy_registry is None:
+        roster_path = (
+            root
+            / "artifacts/research_runtime/"
+            "final_strategy_roster/roster.csv"
+        )
+        if not roster_path.is_file() or matrix.empty:
+            return {}
+        roster = pd.read_csv(roster_path)
+        missing_reason = "STRATEGY_NOT_BROADLY_VALIDATED"
+    else:
+        roster = strategy_registry.copy()
+        missing_reason = "STRATEGY_NOT_DEPLOYED_FOR_RESEARCH_SIGNALS"
+        if matrix.empty:
+            return {}
 
-    if not roster_path.is_file() or matrix.empty:
-        return {}
-
-    roster = pd.read_csv(roster_path)
+    required_columns = {
+        "hypothesis_id",
+        "strategy",
+        "params_json",
+        required_status_column,
+    }
+    missing_columns = sorted(required_columns.difference(roster.columns))
+    if missing_columns:
+        raise ValueError(
+            f"strategy registry missing columns {missing_columns}"
+        )
     roster_map = {
         str(row["hypothesis_id"]): row
         for row in roster.to_dict(orient="records")
-        if str(row.get("roster_status") or "")
-        == "BROADLY_VALIDATED_FINALIST"
+        if str(row.get(required_status_column) or "") == required_status
     }
 
     sources = discover_interval_sources(root, "1h")
@@ -204,7 +224,7 @@ def build_forward_trigger_map(
         if roster_row is None:
             output[key] = {
                 "ready": False,
-                "reason": "STRATEGY_NOT_BROADLY_VALIDATED",
+                "reason": missing_reason,
             }
             continue
 
@@ -238,7 +258,7 @@ def build_forward_trigger_map(
             signal["canonical_source"] = str(path)
             output[key] = signal
 
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
             output[key] = {
                 "ready": False,
                 "reason": f"{type(exc).__name__}:{exc}",

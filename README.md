@@ -1,4 +1,4 @@
-# Stocks Quant Agent Final — v0.4.3
+# Stocks Quant Agent Final — v0.4.4
 
 A stocks / ETFs / commodity-proxy active-swing **research platform** with canonical market data, isolated external-research engines and an execution-neutral `TradeIntent` boundary.
 
@@ -19,6 +19,44 @@ TradeIntent (execution_authority = NONE)
         ↓
 EXISTING external risk + broker authority
 ```
+
+## v0.4.4: v2.19 validated research automation
+
+v2.19 connects the immutable v2.18 handoff to the forward-signal engine without
+granting broker or order authority. It requires the exact two-strategy handoff,
+matches each strategy to a broadly validated finalist, canonicalizes and hashes
+its frozen parameters, and admits only supported deployment adapters.
+
+The automation is deterministic and fail-closed. It verifies all v2.18 source
+hashes on every run, rejects overlapping runs, recovers only stale locks, writes
+artifacts atomically, and does not rewrite unchanged deployment outputs.
+
+Build and verify the deployment bridge:
+
+```bash
+python scripts/build_validated_strategy_deployment_v2_19.py
+python scripts/audit_validated_strategy_deployment_v2_19.py
+```
+
+Run the research-only automation and strict forward-signal gate:
+
+```bash
+python scripts/run_validated_strategy_automation_v2_19.py
+```
+
+Run the full local finalization, optionally rebuilding v2.18 first:
+
+```bash
+python scripts/run_research_automation_finalization_v2_19.py \
+  --refresh-v2-18 \
+  --limit-symbols 5 \
+  --full-tests
+```
+
+Deployment outputs are written below
+`artifacts/research_runtime/validated_strategy_deployment_v2_19/`. Strict
+forward-signal outputs are written below
+`artifacts/research_runtime/validated_forward_signal_state_v2_19/`.
 
 ## v0.4.3: v2.18 validated-strategy handoff
 

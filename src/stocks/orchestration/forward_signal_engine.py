@@ -24,6 +24,10 @@ def _bool(value: Any) -> bool:
 
 def build_forward_signal_state(
     project_root: str | Path,
+    *,
+    strategy_registry: pd.DataFrame | None = None,
+    required_status_column: str = "roster_status",
+    required_status: str = "BROADLY_VALIDATED_FINALIST",
 ) -> tuple[pd.DataFrame, dict[str, Any]]:
     root = Path(project_root).resolve()
 
@@ -64,7 +68,19 @@ def build_forward_signal_state(
     triggers = build_forward_trigger_map(
         root,
         matrix,
+        strategy_registry=strategy_registry,
+        required_status_column=required_status_column,
+        required_status=required_status,
     )
+
+    deployed_status: dict[str, str] = {}
+    if strategy_registry is not None:
+        deployed_status = {
+            str(row["hypothesis_id"]): str(
+                row.get(required_status_column) or ""
+            )
+            for row in strategy_registry.to_dict(orient="records")
+        }
 
     rows: list[dict[str, Any]] = []
 
@@ -122,6 +138,12 @@ def build_forward_signal_state(
                 "symbol": symbol,
                 "hypothesis_id": hypothesis_id,
                 "strategy": row["strategy"],
+                "validated_deployment_status": deployed_status.get(
+                    hypothesis_id,
+                    "LEGACY_ROSTER_PATH"
+                    if strategy_registry is None
+                    else "NOT_DEPLOYED",
+                ),
                 "family": row["family"],
                 "research_lane": row.get("research_lane"),
                 "shariah_gate": row.get("shariah_gate"),
@@ -171,7 +193,7 @@ def build_forward_signal_state(
 
     audit = {
         "schema": "forward_signal_state_v2_8",
-        "rows": int(len(frame)),
+        "rows": len(frame),
         "new_entry_ready": int(
             frame["new_entry_ready"].sum()
         ),
