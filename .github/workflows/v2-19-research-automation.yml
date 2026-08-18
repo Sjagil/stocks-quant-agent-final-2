@@ -43,7 +43,8 @@ jobs:
             pandas \
             pyarrow \
             pytest \
-            PyYAML
+            PyYAML \
+            scikit-learn
           python -m pip install --no-deps -e .
       - name: Compile v2.19 automation
         run: |

@@ -1,4 +1,4 @@
-# Stocks Quant Agent Final — v0.4.4
+# Stocks Quant Agent Final v0.4.5
 
 A stocks / ETFs / commodity-proxy active-swing **research platform** with canonical market data, isolated external-research engines and an execution-neutral `TradeIntent` boundary.
 
@@ -19,6 +19,24 @@ TradeIntent (execution_authority = NONE)
         ↓
 EXISTING external risk + broker authority
 ```
+
+## v0.4.5: operational v2.21 RL and MARL pipeline
+
+v0.4.5 completes the research path from canonical multi-symbol OHLCV to
+point-in-time episodes, purged walk-forward training, safe checkpoints, OOS
+cost stress, promotion evidence, and independent artifact verification.
+
+The supported v2.21 algorithms are MAPPO and MATD3. The configured final matrix
+uses exactly ten seeds. Smoke mode uses one seed and one fold and is explicitly
+not promotion-capable.
+
+```bash
+python scripts/run_rl_marl_finalization_v2_21.py
+python scripts/run_rl_marl_finalization_v2_21.py --full --full-tests
+```
+
+All outputs stay research-only and report zero broker calls, zero order calls,
+and `EXECUTION_AUTHORITY NONE`.
 
 ## v0.4.4: v2.19 validated research automation
 
@@ -269,9 +287,53 @@ promote environment only after pass
 
 Do not modify third-party source in `references/` unless an explicit fork/patch is intended. Do not edit `build/lib/stocks`; edit `src/stocks` only.
 
-## RL remains shadow-only
+## RL and MARL research pipeline
 
-The existing causal long-only RL environment remains available. PPO and SAC training are research-only. A model must never be promoted from a same-dataset train/evaluation run. Purged walk-forward, untouched OOS, multi-seed, cost stress and promotion governance are the next pipeline stage.
+The v2.21 pipeline is operational and remains shadow-only. It supports a shared
+MAPPO actor with a centralized critic and an isolated MATD3 benchmark. Neither
+path has a broker interface or execution authority.
+
+Install the research dependencies:
+
+```bash
+python -m pip install -e '.[rl,dev]'
+```
+
+Download or place canonical Parquet files under `data/derived`,
+`data/adjusted`, or `data/processed`, then run one cheap end-to-end check:
+
+```bash
+python scripts/run_rl_marl_pipeline_v2_21.py --smoke
+```
+
+Run the configured ten-seed walk-forward matrix:
+
+```bash
+python scripts/run_rl_marl_pipeline_v2_21.py \
+  --config config/rl_marl_pipeline_v2_21.yaml \
+  --verify-reproducibility
+```
+
+Audit a completed run without retraining:
+
+```bash
+python scripts/audit_rl_marl_pipeline_v2_21.py \
+  artifacts/rl_marl/v2_21/<config-hash>-<dataset-hash>
+```
+
+The pipeline provides:
+
+- aligned point-in-time features without forward-filled bars;
+- train-only feature scaling per purged walk-forward fold;
+- deterministic seed and fold ledgers;
+- pickle-free NumPy checkpoints with SHA-256 manifests;
+- untouched OOS evaluation at 1.0x, 1.5x, and 2.0x costs;
+- concentration, drawdown, baseline, DSR, and confidence gates;
+- fail-closed research decisions with `EXECUTION_AUTHORITY NONE`.
+
+Promotion remains blocked until the full ten-seed evidence passes every gate,
+including explicit regime coverage. Passing the research gate still does not
+grant live execution authority.
 
 ## Tests
 

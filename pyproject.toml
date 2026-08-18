@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stocks-quant-agent-final"
-version = "0.4.4"
+version = "0.4.5"
 description = "Stocks/ETF/commodities market intelligence + constrained allocation + shadow RL integration"
 requires-python = ">=3.11"
 dependencies = [
