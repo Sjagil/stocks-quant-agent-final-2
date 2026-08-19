@@ -39,7 +39,11 @@ def pairwise_redundancy(trades: pd.DataFrame) -> pd.DataFrame:
 
         a_pnl = _daily_realized_returns(a)
         b_pnl = _daily_realized_returns(b)
-        aligned = pd.concat([a_pnl.rename("a"), b_pnl.rename("b")], axis=1).dropna()
+        aligned = pd.concat(
+            [a_pnl.rename("a"), b_pnl.rename("b")],
+            axis=1,
+            sort=False,
+        ).dropna()
         correlation = float(aligned["a"].corr(aligned["b"])) if len(aligned) >= 10 else np.nan
         redundant = bool(jaccard >= 0.50 or (np.isfinite(correlation) and correlation >= 0.80))
         rows.append(

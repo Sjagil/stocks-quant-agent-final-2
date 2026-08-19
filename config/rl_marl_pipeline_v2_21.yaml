@@ -1,0 +1,74 @@
+version: v2.21.1
+output_root: artifacts/rl_marl/v2_21
+
+dataset:
+  data_root: data
+  timeframe: 1h
+  symbols:
+    - AAPL
+    - AMD
+    - MSFT
+    - NVDA
+    - SPY
+    - QQQ
+    - GLD
+    - SLV
+    - CPER
+  benchmark_symbol: SPY
+  verify_source_hashes: true
+
+walk_forward:
+  train_size: 4000
+  validation_size: 1000
+  test_size: 1000
+  purge: 24
+  embargo: 24
+
+training:
+  algorithms:
+    - MAPPO
+    - MATD3
+  seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  training_updates: 5
+  maximum_training_steps: 1024
+  actor_hidden_dims: [128, 128]
+  critic_hidden_dims: [256, 256]
+  matd3_replay_capacity: 100000
+  matd3_batch_size: 256
+  matd3_gradient_steps: 32
+  device: cpu
+
+validation:
+  required_regimes:
+    - BULL_LOW_VOL
+    - BULL_HIGH_VOL
+    - BEAR_LOW_VOL
+    - BEAR_HIGH_VOL
+  minimum_regime_observations: 20
+
+environment:
+  initial_equity: 1000000.0
+  max_asset_weight: 0.20
+  max_gross_exposure: 0.95
+  transaction_cost_bps: 4.0
+  slippage_bps: 4.0
+  return_normalizer: 0.01
+  drawdown_soft_limit: 0.05
+  drawdown_hard_limit: 0.10
+  drawdown_penalty: 0.25
+  turnover_penalty: 0.05
+  concentration_soft_limit: 0.20
+  soft_risk_penalty: 0.10
+  team_reward_share: 0.75
+  counterfactual_reward_share: 0.25
+
+promotion:
+  required_seeds: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  minimum_positive_fold_ratio: 0.75
+  minimum_seed_wins: 7
+  minimum_deflated_sharpe_probability: 0.95
+  minimum_expectancy_ci_lower_bps: 0.0
+  maximum_drawdown: 0.10
+  maximum_concentration: 0.30
+  minimum_cost_stress_return: 0.0
+  minimum_severe_stress_return: -0.02

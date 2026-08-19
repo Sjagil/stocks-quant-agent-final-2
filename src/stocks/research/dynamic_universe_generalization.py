@@ -166,6 +166,23 @@ def _hypothesis_trades(
         hypothesis = hypothesis_from_survivor_row(row)
         caches = {symbol: FeatureCache(frame) for symbol, frame in frames.items()}
         return evaluate_indicator_hypothesis(hypothesis, frames, caches)
+    if source_engine == "strategy_generation_v2_22":
+        from stocks.intelligence_agent.strategy_combo_research_lab import FeatureCache
+        from stocks.research.strategy_generation_v2_22 import (
+            GeneratedStrategyHypothesis,
+            evaluate_generated_hypothesis,
+        )
+
+        hypothesis = GeneratedStrategyHypothesis(
+            hypothesis_id=str(row["hypothesis_id"]),
+            strategy=str(row["strategy"]),
+            family=str(row["family"]),
+            rationale=str(row.get("rationale") or ""),
+            params=dict(params),
+            complexity=int(row.get("complexity") or len(params)),
+        )
+        caches = {symbol: FeatureCache(frame) for symbol, frame in frames.items()}
+        return evaluate_generated_hypothesis(hypothesis, frames, caches)
     from stocks.research.strategy_factory_1h import (
         OneHourHypothesis,
         build_feature_caches,
