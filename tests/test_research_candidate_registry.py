@@ -41,6 +41,11 @@ def test_generated_cross_engine_failure_is_not_left_in_queue(
                 "source_engine": "strategy_generation_v2_22",
                 "status": "DIVERSE_SURVIVOR",
                 "execution_contract": "NEXT_OPEN_REPLAY",
+                "robustness_score": 88.5,
+                "median_test_expectancy_bps": 32.0,
+                "median_stress_test_expectancy_bps": 18.0,
+                "median_test_profit_factor": 1.4,
+                "queue_rank": 2,
             }
         ]
     ).to_csv(queue_root / "validation_queue.csv", index=False)
@@ -68,5 +73,8 @@ def test_generated_cross_engine_failure_is_not_left_in_queue(
     row = registry.iloc[0]
     assert row["validation_status"] == "REJECTED"
     assert row["promotion_stage"] == "REJECTED_AFTER_CROSSCHECK"
+    assert row["robustness_score"] == 88.5
+    assert row["median_stress_test_expectancy_bps"] == 18.0
+    assert row["queue_rank"] == 2
     assert audit["rejected_after_crosscheck_count"] == 1
     assert row["execution_authority"] == "NONE"

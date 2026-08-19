@@ -58,6 +58,32 @@ def _finite(value: Any) -> float | None:
     return number if math.isfinite(number) else None
 
 
+def _evidence_champion(
+    component: set[str],
+    registry_by_id: dict[str, dict[str, Any]],
+) -> str:
+    def descending(value: Any) -> float:
+        number = _finite(value)
+        return -number if number is not None else math.inf
+
+    def rank(hypothesis_id: str) -> tuple[Any, ...]:
+        row = registry_by_id[hypothesis_id]
+        return (
+            -int(str(row.get("promotion_stage")) == "FINALIST_CANDIDATE"),
+            -int(
+                str(row.get("generalization_status"))
+                == "DYNAMIC_UNIVERSE_VALIDATED"
+            ),
+            descending(row.get("robustness_score")),
+            descending(row.get("median_stress_test_expectancy_bps")),
+            descending(row.get("median_test_expectancy_bps")),
+            _finite(row.get("queue_rank")) or math.inf,
+            hypothesis_id,
+        )
+
+    return min(component, key=rank)
+
+
 def validated_15m_champion(
     root: Path,
 ) -> tuple[str | None, dict[str, Any]]:
@@ -155,6 +181,10 @@ def build_final_strategy_roster(
     } if not execution.empty else {}
 
     ids = registry["hypothesis_id"].astype(str).tolist()
+    registry_by_id = {
+        str(row["hypothesis_id"]): row
+        for row in registry.to_dict(orient="records")
+    }
     components = _components(ids, pairs)
 
     cluster_by_id: dict[str, str] = {}
@@ -189,7 +219,7 @@ def build_final_strategy_roster(
                 ),
             )
         else:
-            champion = min(component)
+            champion = _evidence_champion(component, registry_by_id)
 
         champion_by_cluster[cluster] = champion
 
@@ -309,7 +339,7 @@ def build_final_strategy_roster(
 
     audit = {
         "schema": "final_strategy_roster_v2_8",
-        "strategy_count": int(len(frame)),
+        "strategy_count": len(frame),
         "broadly_validated_finalists": int(
             (
                 frame["roster_status"]

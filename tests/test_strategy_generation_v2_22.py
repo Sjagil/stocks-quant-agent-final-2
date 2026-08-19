@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import json
 import math
+import runpy
+import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 from stocks.intelligence_agent.strategy_combo_research_lab import FeatureCache
+from stocks.research.candidate_strategy_matrix import _evaluate
 from stocks.research.dynamic_universe_generalization import _hypothesis_trades
 from stocks.research.strategy_generation_v2_22 import (
     GeneratedStrategyHypothesis,
@@ -20,6 +23,7 @@ from stocks.research.strategy_generation_v2_22 import (
     cross_sectional_trade_metrics,
     efficiency_ratio,
     generate_strategy_hypotheses,
+    promotion_blockers,
     promotion_status,
     range_quantile,
     robust_selection_score,
@@ -211,6 +215,44 @@ def test_promotion_requires_breadth_and_low_concentration() -> None:
     )
 
 
+def test_ordinary_survivor_allows_one_negative_fold() -> None:
+    kwargs = {
+        "evaluated_folds": 3,
+        "selection_frequency": 0.75,
+        "positive_fold_ratio": 2.0 / 3.0,
+        "stress_positive_fold_ratio": 2.0 / 3.0,
+        "median_expectancy_bps": 83.75,
+        "worst_expectancy_bps": -34.94,
+        "median_stress_expectancy_bps": 69.65,
+        "median_profit_factor": 1.86,
+        "median_positive_symbol_ratio": 0.77,
+        "maximum_symbol_trade_share": 0.18,
+        "maximum_forced_trade_ratio": 0.09,
+    }
+    assert promotion_blockers(**kwargs) == ()
+    assert promotion_status(**kwargs) == "DIVERSE_SURVIVOR"
+
+
+def test_ordinary_survivor_rejects_two_negative_folds() -> None:
+    kwargs = {
+        "evaluated_folds": 4,
+        "selection_frequency": 1.0,
+        "positive_fold_ratio": 0.50,
+        "stress_positive_fold_ratio": 0.50,
+        "median_expectancy_bps": 20.0,
+        "worst_expectancy_bps": -10.0,
+        "median_stress_expectancy_bps": 10.0,
+        "median_profit_factor": 1.4,
+        "median_positive_symbol_ratio": 0.75,
+        "maximum_symbol_trade_share": 0.20,
+        "maximum_forced_trade_ratio": 0.10,
+    }
+    blockers = promotion_blockers(**kwargs)
+    assert "MORE_THAN_ONE_NEGATIVE_TEST_FOLD" in blockers
+    assert "MORE_THAN_ONE_NEGATIVE_STRESS_FOLD" in blockers
+    assert promotion_status(**kwargs) == "REJECT"
+
+
 def _trade_rows(
     hypothesis_id: str,
     *,
@@ -374,12 +416,79 @@ def test_dynamic_universe_dispatches_generated_hypothesis() -> None:
         assert set(trades["hypothesis_id"]) == {hypothesis.hypothesis_id}
 
 
-def test_finalizer_orders_cross_engine_before_generalization_and_registry() -> None:
+def test_candidate_matrix_dispatches_generated_hypothesis() -> None:
+    hypothesis = generate_strategy_hypotheses(
+        enabled_strategies={"keltner_volume_breakout"},
+        max_variants_per_blueprint=1,
+        seed=42,
+    )[0]
+    row = {
+        "hypothesis_id": hypothesis.hypothesis_id,
+        "strategy": hypothesis.strategy,
+        "family": hypothesis.family,
+        "rationale": hypothesis.rationale,
+        "complexity": hypothesis.complexity,
+        "source_engine": "strategy_generation_v2_22",
+        "params_json": json.dumps(hypothesis.params),
+    }
+    trades = _evaluate(row, symbol="TEST", frame=_frame())
+    assert isinstance(trades, pd.DataFrame)
+    assert {
+        "hypothesis_id",
+        "strategy",
+        "family",
+        "symbol",
+        "entry_time",
+        "exit_time",
+        "gross_return",
+    }.issubset(trades.columns)
+
+
+def test_finalizer_orders_registry_and_validation_evidence() -> None:
     root = Path(__file__).resolve().parents[1]
     text = (root / "scripts/run_strategy_research_finalization_v2_22.py").read_text(
         encoding="utf-8"
     )
+    registry_pre = text.index('"REGISTRY_PRE_CROSS_ENGINE"')
     cross_engine = text.index('"CROSS_ENGINE_VALIDATION"')
+    registry_post_cross = text.index('"REGISTRY_POST_CROSS_ENGINE"')
     generalization = text.index('"DYNAMIC_UNIVERSE_GENERALIZATION"')
-    registry = text.index('"RESEARCH_CANDIDATE_REGISTRY"')
-    assert cross_engine < generalization < registry
+    registry_post_generalization = text.index(
+        '"REGISTRY_POST_GENERALIZATION"'
+    )
+    redundancy = text.index('"STRATEGY_REDUNDANCY"')
+    roster = text.index('"FINAL_STRATEGY_ROSTER"')
+    pipeline_audit = text.index('"GENERATED_STRATEGY_PIPELINE_AUDIT"')
+    assert (
+        registry_pre
+        < cross_engine
+        < registry_post_cross
+        < generalization
+        < registry_post_generalization
+        < redundancy
+        < roster
+        < pipeline_audit
+    )
+
+
+def test_cross_engine_scope_builder_reports_empty_queue_cleanly(
+    tmp_path,
+    monkeypatch,
+    capsys,
+) -> None:
+    queue = tmp_path / "empty_queue.csv"
+    pd.DataFrame(columns=["hypothesis_id", "strategy"]).to_csv(
+        queue,
+        index=False,
+    )
+    root = Path(__file__).resolve().parents[1]
+    namespace = runpy.run_path(str(root / "scripts/build_cross_engine_scope_v2_22.py"))
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["build_cross_engine_scope_v2_22.py", "--queue", str(queue)],
+    )
+    assert namespace["main"]() == 3
+    output = capsys.readouterr().out
+    assert "NO_CANDIDATE_SURVIVED" in output
+    assert "Traceback" not in output

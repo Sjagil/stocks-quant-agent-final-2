@@ -21,6 +21,8 @@ from stocks.research.strategy_factory_1h import (
     prepare_one_hour_frame,
 )
 from stocks.research.strategy_generation_v2_22 import (
+    MINIMUM_EVALUATED_FOLDS,
+    ORDINARY_MAXIMUM_NEGATIVE_FOLDS,
     SCHEMA,
     blueprint_registry,
     build_diversified_validation_queue,
@@ -28,6 +30,7 @@ from stocks.research.strategy_generation_v2_22 import (
     evaluate_generated_hypothesis,
     generate_strategy_hypotheses,
     hypotheses_frame,
+    promotion_blockers,
     promotion_status,
     robust_selection_score,
 )
@@ -405,6 +408,19 @@ def main() -> int:
                 maximum_symbol_trade_share=max_symbol_share,
                 maximum_forced_trade_ratio=max_forced,
             )
+            blockers = promotion_blockers(
+                evaluated_folds=evaluated,
+                selection_frequency=frequency,
+                positive_fold_ratio=positive,
+                stress_positive_fold_ratio=stress_positive,
+                median_expectancy_bps=median_exp,
+                worst_expectancy_bps=worst_exp,
+                median_stress_expectancy_bps=median_stress,
+                median_profit_factor=median_pf,
+                median_positive_symbol_ratio=median_symbol_positive,
+                maximum_symbol_trade_share=max_symbol_share,
+                maximum_forced_trade_ratio=max_forced,
+            )
             hypothesis = hypothesis_map[str(hypothesis_id)]
             finite_scores = (
                 pd.to_numeric(group["selection_score"], errors="coerce")
@@ -433,6 +449,8 @@ def main() -> int:
                     "maximum_forced_trade_ratio": max_forced,
                     "total_test_trades": total_trades,
                     "robustness_score": robustness,
+                    "blockers": "|".join(blockers) if blockers else "NONE",
+                    "blocker_count": len(blockers),
                     "status": status,
                     "promotion_stage": (
                         "VALIDATION_QUEUE" if status != "REJECT" else "REJECTED"
@@ -472,8 +490,44 @@ def main() -> int:
     summary["promotion_stage"] = summary.get(
         "promotion_stage", pd.Series(index=summary.index, dtype=object)
     ).fillna("REJECTED")
+    summary["blockers"] = summary.get(
+        "blockers", pd.Series(index=summary.index, dtype=object)
+    ).fillna("NOT_SELECTED_IN_ANY_FOLD")
+    summary["blocker_count"] = (
+        pd.to_numeric(
+            summary.get(
+                "blocker_count",
+                pd.Series(index=summary.index, dtype=float),
+            ),
+            errors="coerce",
+        )
+        .fillna(1)
+        .astype(int)
+    )
+    diagnostic_defaults = {
+        "selected_folds": 0,
+        "median_stress_test_expectancy_bps": math.nan,
+        "median_test_expectancy_bps": math.nan,
+    }
+    for column, default in diagnostic_defaults.items():
+        if column not in summary:
+            summary[column] = default
     survivor_statuses = {"DIVERSE_SURVIVOR", "DIVERSE_STRONG_SURVIVOR"}
     survivors = summary.loc[summary["status"].isin(survivor_statuses)].copy()
+    rejection_diagnostics = (
+        summary.loc[~summary["status"].isin(survivor_statuses)]
+        .sort_values(
+            [
+                "blocker_count",
+                "selected_folds",
+                "median_stress_test_expectancy_bps",
+                "median_test_expectancy_bps",
+            ],
+            ascending=[True, False, False, False],
+            na_position="last",
+        )
+        .reset_index(drop=True)
+    )
     survivor_trades = materialize_survivor_trades(trade_cache, survivors)
     diversity = policy["diversity"]
     queue, redundancy = build_diversified_validation_queue(
@@ -490,6 +544,10 @@ def main() -> int:
     pd.DataFrame(fold_rows).to_csv(OUTPUT / "fold_candidates.csv", index=False)
     selected.to_csv(OUTPUT / "fold_selected.csv", index=False)
     summary.to_csv(OUTPUT / "all_hypotheses_summary.csv", index=False)
+    rejection_diagnostics.to_csv(
+        OUTPUT / "rejection_diagnostics.csv",
+        index=False,
+    )
     survivors.to_csv(OUTPUT / "survivors.csv", index=False)
     queue.to_csv(OUTPUT / "validation_queue.csv", index=False)
     redundancy.to_csv(OUTPUT / "redundancy.csv", index=False)
@@ -502,6 +560,7 @@ def main() -> int:
         "fold_candidates.csv",
         "fold_selected.csv",
         "all_hypotheses_summary.csv",
+        "rejection_diagnostics.csv",
         "survivors.csv",
         "validation_queue.csv",
         "redundancy.csv",
@@ -526,6 +585,7 @@ def main() -> int:
         "hypotheses": len(hypotheses),
         "folds": len(folds),
         "survivors": len(survivors),
+        "rejected_hypotheses": len(rejection_diagnostics),
         "survivor_families": int(survivors["family"].nunique())
         if not survivors.empty
         else 0,
@@ -539,6 +599,9 @@ def main() -> int:
         "source_paths": sources,
         "base_cost_bps_per_side": base_cost,
         "stress_cost_bps_per_side": stress_cost,
+        "minimum_evaluated_folds": MINIMUM_EVALUATED_FOLDS,
+        "ordinary_maximum_negative_folds": (ORDINARY_MAXIMUM_NEGATIVE_FOLDS),
+        "strong_maximum_negative_folds": 0,
         "cross_engine_validation_required": True,
         "dynamic_universe_generalization_required": True,
         "automatic_finalist_promotion": False,

@@ -33,8 +33,22 @@ def main() -> int:
 
     queue_path = Path(args.queue).resolve()
     if not queue_path.is_file():
-        raise FileNotFoundError(f"v2.22 validation queue missing: {queue_path}")
-    queue = pd.read_csv(queue_path)
+        print("CROSS_ENGINE_SCOPE_V2_22", "READY", False)
+        print("REASON", "VALIDATION_QUEUE_MISSING")
+        print("QUEUE", queue_path)
+        return 2
+    try:
+        queue = pd.read_csv(queue_path)
+    except pd.errors.EmptyDataError:
+        queue = pd.DataFrame()
+    if queue.empty:
+        print("CROSS_ENGINE_SCOPE_V2_22", "READY", False)
+        print("REASON", "NO_CANDIDATE_SURVIVED")
+        print("AUTOMATIC_LIVE_PROMOTION", False)
+        print("BROKER_CALLS", 0)
+        print("ORDER_CALLS", 0)
+        print("EXECUTION_AUTHORITY", "NONE")
+        return 3
     base = yaml.safe_load(Path(args.base_config).read_text(encoding="utf-8"))
     config = build_cross_engine_scope_config(base, queue)
     output = Path(args.output).resolve()

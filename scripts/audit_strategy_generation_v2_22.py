@@ -17,6 +17,7 @@ MANIFEST_ARTIFACTS = (
     "fold_candidates.csv",
     "fold_selected.csv",
     "all_hypotheses_summary.csv",
+    "rejection_diagnostics.csv",
     "survivors.csv",
     "validation_queue.csv",
     "redundancy.csv",
@@ -61,6 +62,7 @@ def main() -> int:
         "fold_candidates.csv",
         "fold_selected.csv",
         "all_hypotheses_summary.csv",
+        "rejection_diagnostics.csv",
         "survivors.csv",
         "validation_queue.csv",
         "redundancy.csv",
@@ -111,6 +113,7 @@ def main() -> int:
     queue = _read_csv(artifact_root / "validation_queue.csv")
     survivors = _read_csv(artifact_root / "survivors.csv")
     hypotheses = _read_csv(artifact_root / "hypotheses.csv")
+    diagnostics = _read_csv(artifact_root / "rejection_diagnostics.csv")
     trades = (
         pd.read_parquet(artifact_root / "survivor_trades.parquet")
         if (artifact_root / "survivor_trades.parquet").is_file()
@@ -121,6 +124,7 @@ def main() -> int:
         ("hypotheses", hypotheses),
         ("survivors", survivors),
         ("validation_queue", queue),
+        ("rejection_diagnostics", diagnostics),
     ):
         if frame.empty:
             continue
@@ -145,12 +149,30 @@ def main() -> int:
         errors.append("QUEUE_NOT_SUBSET_OF_SURVIVORS")
     if survivor_ids != trade_ids:
         errors.append("SURVIVOR_TRADE_COVERAGE_MISMATCH")
+    hypothesis_ids = (
+        set(hypotheses["hypothesis_id"].astype(str))
+        if "hypothesis_id" in hypotheses
+        else set()
+    )
+    diagnostic_ids = (
+        set(diagnostics["hypothesis_id"].astype(str))
+        if "hypothesis_id" in diagnostics
+        else set()
+    )
+    if diagnostic_ids != hypothesis_ids - survivor_ids:
+        errors.append("REJECTION_DIAGNOSTIC_COVERAGE_MISMATCH")
+    if not diagnostics.empty and not {
+        "blockers",
+        "blocker_count",
+    }.issubset(diagnostics.columns):
+        errors.append("REJECTION_DIAGNOSTIC_COLUMNS_MISSING")
     if audit:
         expected_counts = {
             "hypotheses": len(hypotheses),
             "survivors": len(survivors),
             "validation_queue": len(queue),
             "survivor_trade_rows": len(trades),
+            "rejected_hypotheses": len(diagnostics),
         }
         for name, expected in expected_counts.items():
             if int(audit.get(name, -1)) != expected:
@@ -182,6 +204,7 @@ def main() -> int:
     print("HYPOTHESES", len(hypotheses))
     print("SURVIVORS", len(survivors))
     print("VALIDATION_QUEUE", len(queue))
+    print("REJECTION_DIAGNOSTICS", len(diagnostics))
     print("QUEUE_FAMILIES", int(queue["family"].nunique()) if not queue.empty else 0)
     print("ERRORS", "NONE" if not errors else "|".join(errors))
     print("AUTOMATIC_FINALIST_PROMOTION", False)

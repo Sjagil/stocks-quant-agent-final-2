@@ -37,7 +37,9 @@ def _records(path: Path, key: str = "hypothesis_id") -> dict[str, dict]:
 
 
 def build_research_candidate_registry(project_root: Path) -> tuple[pd.DataFrame, dict]:
-    from stocks.research.validated_strategy_registry import write_validated_strategy_registry
+    from stocks.research.validated_strategy_registry import (
+        write_validated_strategy_registry,
+    )
 
     validated, validated_audit, validated_path = write_validated_strategy_registry(project_root)
     indicator_path = project_root / "artifacts/research_runtime/indicator_discovery_1h/survivors.csv"
@@ -173,6 +175,17 @@ def build_research_candidate_registry(project_root: Path) -> tuple[pd.DataFrame,
                     "dynamic_universe_generalized": (
                         general_status == "DYNAMIC_UNIVERSE_VALIDATED"
                     ),
+                    "robustness_score": item.get("robustness_score"),
+                    "median_test_expectancy_bps": item.get(
+                        "median_test_expectancy_bps"
+                    ),
+                    "median_stress_test_expectancy_bps": item.get(
+                        "median_stress_test_expectancy_bps"
+                    ),
+                    "median_test_profit_factor": item.get(
+                        "median_test_profit_factor"
+                    ),
+                    "queue_rank": item.get("queue_rank"),
                     "execution_authority": "NONE",
                 }
             )
@@ -259,7 +272,7 @@ def build_research_candidate_registry(project_root: Path) -> tuple[pd.DataFrame,
 
     audit = {
         "schema": "research_candidate_registry_v2",
-        "candidate_count": int(len(frame)),
+        "candidate_count": len(frame),
         "finalist_count": int((frame["promotion_stage"] == "FINALIST_CANDIDATE").sum()) if not frame.empty else 0,
         "challenger_count": int((frame["promotion_stage"] == "CHALLENGER").sum()) if not frame.empty else 0,
         "generalization_queue_count": int((frame["promotion_stage"] == "GENERALIZATION_QUEUE").sum()) if not frame.empty else 0,

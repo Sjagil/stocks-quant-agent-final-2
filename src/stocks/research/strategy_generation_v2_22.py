@@ -24,6 +24,8 @@ SCHEMA = "strategy_generation_v2_22"
 SOURCE_ENGINE = "strategy_generation_v2_22"
 PRIMARY_TIMEFRAME = "1h"
 EXECUTION_CONTRACT = "NEXT_OPEN_REPLAY"
+MINIMUM_EVALUATED_FOLDS = 3
+ORDINARY_MAXIMUM_NEGATIVE_FOLDS = 1
 
 
 @dataclass(frozen=True)
@@ -857,19 +859,19 @@ def promotion_status(
     maximum_symbol_trade_share: float,
     maximum_forced_trade_ratio: float,
 ) -> str:
-    common = (
-        evaluated_folds >= 3
-        and selection_frequency >= 0.50
-        and positive_fold_ratio >= 0.75
-        and stress_positive_fold_ratio >= 0.75
-        and median_expectancy_bps > 0.0
-        and median_stress_expectancy_bps > 0.0
-        and median_profit_factor > 1.10
-        and median_positive_symbol_ratio >= 0.50
-        and maximum_symbol_trade_share <= 0.55
-        and maximum_forced_trade_ratio <= 0.50
-    )
-    if not common:
+    if promotion_blockers(
+        evaluated_folds=evaluated_folds,
+        selection_frequency=selection_frequency,
+        positive_fold_ratio=positive_fold_ratio,
+        stress_positive_fold_ratio=stress_positive_fold_ratio,
+        median_expectancy_bps=median_expectancy_bps,
+        worst_expectancy_bps=worst_expectancy_bps,
+        median_stress_expectancy_bps=median_stress_expectancy_bps,
+        median_profit_factor=median_profit_factor,
+        median_positive_symbol_ratio=median_positive_symbol_ratio,
+        maximum_symbol_trade_share=maximum_symbol_trade_share,
+        maximum_forced_trade_ratio=maximum_forced_trade_ratio,
+    ):
         return "REJECT"
     if (
         selection_frequency >= 0.75
@@ -883,6 +885,85 @@ def promotion_status(
     ):
         return "DIVERSE_STRONG_SURVIVOR"
     return "DIVERSE_SURVIVOR"
+
+
+def promotion_blockers(
+    *,
+    evaluated_folds: int,
+    selection_frequency: float,
+    positive_fold_ratio: float,
+    stress_positive_fold_ratio: float,
+    median_expectancy_bps: float,
+    worst_expectancy_bps: float,
+    median_stress_expectancy_bps: float,
+    median_profit_factor: float,
+    median_positive_symbol_ratio: float,
+    maximum_symbol_trade_share: float,
+    maximum_forced_trade_ratio: float,
+) -> tuple[str, ...]:
+    del worst_expectancy_bps
+    blockers: list[str] = []
+    evaluated = max(int(evaluated_folds), 0)
+
+    if evaluated < MINIMUM_EVALUATED_FOLDS:
+        blockers.append("EVALUATED_FOLDS_LT_3")
+    if not math.isfinite(selection_frequency) or selection_frequency < 0.50:
+        blockers.append("SELECTION_FREQUENCY_LT_050")
+
+    minimum_positive = max(
+        evaluated - ORDINARY_MAXIMUM_NEGATIVE_FOLDS,
+        0,
+    )
+    for ratio, label in (
+        (positive_fold_ratio, "MORE_THAN_ONE_NEGATIVE_TEST_FOLD"),
+        (
+            stress_positive_fold_ratio,
+            "MORE_THAN_ONE_NEGATIVE_STRESS_FOLD",
+        ),
+    ):
+        positive_folds = (
+            round(float(ratio) * evaluated)
+            if evaluated and math.isfinite(float(ratio))
+            else 0
+        )
+        if positive_folds < minimum_positive:
+            blockers.append(label)
+
+    metric_rules = (
+        (
+            median_expectancy_bps,
+            lambda value: value > 0.0,
+            "MEDIAN_EXPECTANCY_NON_POSITIVE",
+        ),
+        (
+            median_stress_expectancy_bps,
+            lambda value: value > 0.0,
+            "STRESS_EXPECTANCY_NON_POSITIVE",
+        ),
+        (median_profit_factor, lambda value: value > 1.10, "PROFIT_FACTOR_LE_110"),
+        (
+            median_positive_symbol_ratio,
+            lambda value: value >= 0.50,
+            "SYMBOL_BREADTH_LT_050",
+        ),
+        (
+            maximum_symbol_trade_share,
+            lambda value: value <= 0.55,
+            "SYMBOL_CONCENTRATION_GT_055",
+        ),
+        (
+            maximum_forced_trade_ratio,
+            lambda value: value <= 0.50,
+            "FORCED_TRADES_GT_050",
+        ),
+    )
+    for raw, passes, label in metric_rules:
+        value = float(raw)
+        if not math.isfinite(value):
+            blockers.append(f"{label}:MISSING")
+        elif not passes(value):
+            blockers.append(label)
+    return tuple(blockers)
 
 
 def build_diversified_validation_queue(
