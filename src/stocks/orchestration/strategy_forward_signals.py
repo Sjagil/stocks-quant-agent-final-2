@@ -7,6 +7,10 @@ from typing import Any
 
 import pandas as pd
 
+from stocks.orchestration.generated_strategy_forward_signals_v2_23 import (
+    GENERATED_NEXT_OPEN_STRATEGIES,
+    evaluate_latest_generated_entry_condition,
+)
 from stocks.intelligence_agent.strategy_combo_research_lab import (
     FeatureCache,
 )
@@ -21,11 +25,14 @@ from stocks.research.strategy_factory_1h import (
     prepare_one_hour_frame,
 )
 
-SUPPORTED_NEXT_OPEN_STRATEGIES = frozenset(
+LEGACY_NEXT_OPEN_STRATEGIES = frozenset(
     {
         "rsi_threshold_exit",
         "obv_breakout",
     }
+)
+SUPPORTED_NEXT_OPEN_STRATEGIES = frozenset(
+    LEGACY_NEXT_OPEN_STRATEGIES | GENERATED_NEXT_OPEN_STRATEGIES
 )
 
 
@@ -148,6 +155,13 @@ def evaluate_latest_entry_condition(
     frame: pd.DataFrame,
     params: dict[str, Any],
 ) -> dict[str, Any]:
+    if strategy in GENERATED_NEXT_OPEN_STRATEGIES:
+        return evaluate_latest_generated_entry_condition(
+            strategy=strategy,
+            frame=frame,
+            params=params,
+        )
+
     if strategy == "rsi_threshold_exit":
         return latest_rsi_threshold_signal(frame, params)
 
@@ -284,6 +298,8 @@ def research_entry_ready(
 
 
 __all__ = [
+    "GENERATED_NEXT_OPEN_STRATEGIES",
+    "LEGACY_NEXT_OPEN_STRATEGIES",
     "SUPPORTED_NEXT_OPEN_STRATEGIES",
     "build_forward_trigger_map",
     "evaluate_latest_entry_condition",

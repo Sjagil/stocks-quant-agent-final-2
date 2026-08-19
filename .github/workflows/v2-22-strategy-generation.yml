@@ -15,7 +15,8 @@ jobs:
           cache: pip
       - run: python -m pip install -U pip
       - run: python -m pip install -e '.[dev]'
-      - run: python -m pytest -q tests/test_strategy_generation_v2_22.py tests/test_generated_strategy_validation_v2_22.py tests/test_research_candidate_registry.py tests/test_strategy_redundancy.py tests/test_walkforward_splits.py
+      - run: python -m pytest -q tests/test_strategy_generation_v2_22.py tests/test_generated_strategy_validation_v2_22.py tests/test_generated_forward_adapters_v2_23.py tests/test_research_candidate_registry.py tests/test_strategy_redundancy.py tests/test_walkforward_splits.py
       - run: python scripts/run_strategy_generation_v2_22.py --catalog-only --max-variants-per-blueprint 5
+      - run: python scripts/audit_generated_forward_adapters_v2_23.py
       - run: python -m compileall -q src scripts
       - run: git diff --check
