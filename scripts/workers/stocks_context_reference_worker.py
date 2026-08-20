@@ -7,7 +7,7 @@ from typing import Any
 
 from _common import add_repo_src, artifact_ref, base_health, repo_catalog, run_worker
 
-CAPABILITIES = ("health", "catalog", "discovery_context")
+CAPABILITIES = ("health", "catalog", "discovery_context", "market_context")
 
 RESEARCH_SOFT_BLOCKERS = frozenset(
     {
@@ -339,6 +339,39 @@ def _discovery_context(request: dict, artifact_dir: Path) -> dict:
     }
 
 
+def _market_context(request: dict, artifact_dir: Path) -> dict:
+    repo = _repo(request)
+    add_repo_src(repo)
+    from stocks.market.context import MarketContextLayout, build_market_context
+
+    payload = dict(request.get("payload") or {})
+    symbols = payload.get("symbols") or ["SPY", "QQQ", "AAPL", "NVDA"]
+    result = build_market_context(
+        repo,
+        symbols=symbols,
+        fetch_options=bool(payload.get("fetch_options", True)),
+        max_expirations=int(payload.get("max_expirations", 4)),
+    )
+    layout = MarketContextLayout(repo)
+    artifacts = []
+    for path, media_type in (
+        (layout.gex_json, "application/json"),
+        (layout.orderflow_parquet, "application/x-parquet"),
+        (layout.status_json, "application/json"),
+        (layout.source_audit_json, "application/json"),
+    ):
+        if path.is_file():
+            artifacts.append(artifact_ref(path, media_type=media_type))
+    return {
+        "state": "OK",
+        "data": {
+            "status": result.get("status", "GO") if isinstance(result, dict) else "GO",
+            "execution_authority": "NONE",
+            "broker_calls": 0,
+        },
+        "artifacts": artifacts,
+    }
+
 def handle(request: dict, artifact_dir: Path) -> dict:
     action = request.get("action")
     if action == "health":
@@ -347,6 +380,8 @@ def handle(request: dict, artifact_dir: Path) -> dict:
         return _catalog(request)
     if action == "discovery_context":
         return _discovery_context(request, artifact_dir)
+    if action == "market_context":
+        return _market_context(request, artifact_dir)
     raise ValueError(f"unsupported action: {action}")
 
 

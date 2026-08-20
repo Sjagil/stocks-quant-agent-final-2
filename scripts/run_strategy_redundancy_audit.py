@@ -16,6 +16,8 @@ def main() -> int:
     trade_sources = [
         ROOT / "artifacts/research_runtime/strategy_factory_1h/survivor_trades.parquet",
         ROOT / "artifacts/research_runtime/indicator_pybroker_crosscheck/survivor_trades.parquet",
+        ROOT / "artifacts/research_runtime/indicator_discovery_1h/survivor_trades.parquet",
+        ROOT / "artifacts/research_runtime/strategy_generation_v2_22/survivor_trades.parquet",
     ]
     parts = []
     for path in trade_sources:
@@ -32,8 +34,8 @@ def main() -> int:
     audit = {
         "schema": "strategy_redundancy_audit_v1",
         "strategies": int(trades["hypothesis_id"].nunique()) if not trades.empty and "hypothesis_id" in trades else 0,
-        "pairs": int(len(pairs)),
-        "flagged_pairs": int(len(flagged)),
+        "pairs": len(pairs),
+        "flagged_pairs": len(flagged),
         "promotion_blocking": False,
         "execution_authority": "NONE",
     }

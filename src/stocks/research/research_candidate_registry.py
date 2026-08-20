@@ -7,7 +7,24 @@ import pandas as pd
 
 from stocks.research.validation_policy import promotion_from_evidence
 
-SURVIVOR_STATUSES = {"SURVIVOR", "PROVISIONAL_SURVIVOR", "STRONG_SURVIVOR"}
+SURVIVOR_STATUSES = {
+    "SURVIVOR",
+    "PROVISIONAL_SURVIVOR",
+    "STRONG_SURVIVOR",
+    "DIVERSE_SURVIVOR",
+    "DIVERSE_STRONG_SURVIVOR",
+}
+
+
+def _read_optional_csv(path: Path) -> pd.DataFrame:
+    # Read a research artifact without treating zero rows as an error.
+    if not path.is_file() or path.stat().st_size == 0:
+        return pd.DataFrame()
+    try:
+        return pd.read_csv(path)
+    except pd.errors.EmptyDataError:
+        return pd.DataFrame()
+
 
 
 def _records(path: Path, key: str = "hypothesis_id") -> dict[str, dict]:
@@ -20,15 +37,24 @@ def _records(path: Path, key: str = "hypothesis_id") -> dict[str, dict]:
 
 
 def build_research_candidate_registry(project_root: Path) -> tuple[pd.DataFrame, dict]:
-    from stocks.research.validated_strategy_registry import write_validated_strategy_registry
+    from stocks.research.validated_strategy_registry import (
+        write_validated_strategy_registry,
+    )
 
     validated, validated_audit, validated_path = write_validated_strategy_registry(project_root)
     indicator_path = project_root / "artifacts/research_runtime/indicator_discovery_1h/survivors.csv"
     indicator_cross_path = project_root / "artifacts/research_runtime/indicator_pybroker_crosscheck/summary.csv"
     generalization_path = project_root / "artifacts/research_runtime/dynamic_universe_generalization/summary.csv"
+    mtf_path = project_root / "artifacts/research_runtime/multitimeframe_strategy_research_v2_15_1/survivors.csv"
+    kronos_path = project_root / "artifacts/research_runtime/kronos_strategy_research_v2_15/survivors.csv"
+    generated_path = project_root / "artifacts/research_runtime/strategy_generation_v2_22/validation_queue.csv"
+    cross_engine_path = project_root / "artifacts/research_runtime/cross_engine_strategy_validation_v2_17/strategy_summary.csv"
+    generated_cross_engine_path = project_root / "artifacts/research_runtime/strategy_generation_v2_22/cross_engine/strategy_summary.csv"
 
     indicator_cross = _records(indicator_cross_path)
     generalization = _records(generalization_path)
+    cross_engine = _records(cross_engine_path)
+    cross_engine.update(_records(generated_cross_engine_path))
     rows: list[dict] = []
 
     for _, item in validated.iterrows():
@@ -96,6 +122,138 @@ def build_research_candidate_registry(project_root: Path) -> tuple[pd.DataFrame,
                 }
             )
 
+    if generated_path.is_file():
+        generated = _read_optional_csv(generated_path)
+        for _, item in generated.iterrows():
+            if str(item.get("status")) not in SURVIVOR_STATUSES:
+                continue
+            hypothesis_id = str(item["hypothesis_id"])
+            cross = cross_engine.get(hypothesis_id, {})
+            general = generalization.get(hypothesis_id, {})
+            cross_status = str(cross.get("status") or "PENDING")
+            general_status = str(
+                general.get("generalization_status") or "PENDING"
+            )
+            stage = promotion_from_evidence(
+                existing_stage="VALIDATION_QUEUE",
+                crosscheck_status=cross_status,
+                generalization_status=general_status,
+            )
+            rows.append(
+                {
+                    "hypothesis_id": hypothesis_id,
+                    "strategy": item["strategy"],
+                    "family": item["family"],
+                    "params_json": item["params_json"],
+                    "source_engine": item.get(
+                        "source_engine", "strategy_generation_v2_22"
+                    ),
+                    "research_status": item["status"],
+                    "validation_status": (
+                        "VALIDATED"
+                        if cross_status == "CROSS_ENGINE_VALIDATED"
+                        else "REJECTED"
+                        if cross_status == "CROSS_ENGINE_NOT_VALIDATED"
+                        else "PENDING"
+                    ),
+                    "promotion_stage": stage,
+                    "validation_route": item.get(
+                        "validation_route",
+                        "NATIVE_PYBROKER_NAUTILUS_LEAN_REQUIRED",
+                    ),
+                    "execution_contract": item.get(
+                        "execution_contract", "NEXT_OPEN_REPLAY"
+                    ),
+                    "cross_engine_status": cross_status,
+                    "cross_engine_validated": (
+                        cross_status == "CROSS_ENGINE_VALIDATED"
+                    ),
+                    "generalization_status": general_status,
+                    "generalization_reasons": general.get(
+                        "generalization_reasons", ""
+                    ),
+                    "dynamic_universe_generalized": (
+                        general_status == "DYNAMIC_UNIVERSE_VALIDATED"
+                    ),
+                    "robustness_score": item.get("robustness_score"),
+                    "median_test_expectancy_bps": item.get(
+                        "median_test_expectancy_bps"
+                    ),
+                    "median_stress_test_expectancy_bps": item.get(
+                        "median_stress_test_expectancy_bps"
+                    ),
+                    "median_test_profit_factor": item.get(
+                        "median_test_profit_factor"
+                    ),
+                    "queue_rank": item.get("queue_rank"),
+                    "execution_authority": "NONE",
+                }
+            )
+
+    if kronos_path.is_file():
+        kronos = _read_optional_csv(kronos_path)
+        for _, item in kronos.iterrows():
+            if str(item.get("status")) not in SURVIVOR_STATUSES:
+                continue
+            rows.append(
+                {
+                    "hypothesis_id": str(item["hypothesis_id"]),
+                    "strategy": item.get("template", item.get("strategy")),
+                    "family": item["family"],
+                    "params_json": item["params_json"],
+                    "source_engine": "kronos_foundation_model_v2_15",
+                    "research_status": item["status"],
+                    "validation_status": "PENDING",
+                    "promotion_stage": "VALIDATION_QUEUE",
+                    "validation_route": item.get(
+                        "validation_route",
+                        "KRONOS_CROSS_ENGINE_AND_DYNAMIC_GENERALIZATION_REQUIRED",
+                    ),
+                    "execution_contract": item.get(
+                        "execution_contract",
+                        "NEXT_OPEN_TO_HORIZON_CLOSE",
+                    ),
+                    "cross_engine_status": "PENDING",
+                    "cross_engine_validated": False,
+                    "generalization_status": "PENDING",
+                    "generalization_reasons": "",
+                    "dynamic_universe_generalized": False,
+                    "execution_authority": "NONE",
+                }
+            )
+
+    if mtf_path.is_file():
+        mtf = _read_optional_csv(mtf_path)
+        for _, item in mtf.iterrows():
+            if str(item.get("status")) not in SURVIVOR_STATUSES:
+                continue
+            rows.append(
+                {
+                    "hypothesis_id": str(item["hypothesis_id"]),
+                    "strategy": item.get("template", item.get("strategy")),
+                    "family": item["family"],
+                    "params_json": item["params_json"],
+                    "source_engine": "multitimeframe_strategy_factory_v2_15_1",
+                    "research_status": item["status"],
+                    "validation_status": "PENDING",
+                    "promotion_stage": "VALIDATION_QUEUE",
+                    "validation_route": item.get(
+                        "validation_route",
+                        "MTF_CROSS_ENGINE_AND_DYNAMIC_GENERALIZATION_REQUIRED",
+                    ),
+                    "execution_contract": item.get(
+                        "execution_contract",
+                        "NEXT_15M_OPEN_FIXED_HORIZON",
+                    ),
+                    "cross_engine_status": "PENDING",
+                    "cross_engine_validated": False,
+                    "generalization_status": "PENDING",
+                    "generalization_reasons": "",
+                    "dynamic_universe_generalized": False,
+                    "execution_authority": "NONE",
+                }
+            )
+
     frame = pd.DataFrame(rows)
     if not frame.empty:
         if frame["hypothesis_id"].duplicated().any():
@@ -114,7 +272,7 @@ def build_research_candidate_registry(project_root: Path) -> tuple[pd.DataFrame,
 
     audit = {
         "schema": "research_candidate_registry_v2",
-        "candidate_count": int(len(frame)),
+        "candidate_count": len(frame),
         "finalist_count": int((frame["promotion_stage"] == "FINALIST_CANDIDATE").sum()) if not frame.empty else 0,
         "challenger_count": int((frame["promotion_stage"] == "CHALLENGER").sum()) if not frame.empty else 0,
         "generalization_queue_count": int((frame["promotion_stage"] == "GENERALIZATION_QUEUE").sum()) if not frame.empty else 0,
@@ -128,6 +286,19 @@ def build_research_candidate_registry(project_root: Path) -> tuple[pd.DataFrame,
         "indicator_survivors_present": indicator_path.is_file(),
         "indicator_crosscheck_present": indicator_cross_path.is_file(),
         "generalization_present": generalization_path.is_file(),
+        "multitimeframe_survivors_present": mtf_path.is_file(),
+        "kronos_survivors_present": kronos_path.is_file(),
+        "generated_strategy_queue_present": generated_path.is_file(),
+        "generated_strategy_queue_count": (
+            int(
+                (
+                    frame.get("source_engine", pd.Series(dtype=str))
+                    == "strategy_generation_v2_22"
+                ).sum()
+            )
+            if not frame.empty
+            else 0
+        ),
         "automatic_live_promotion": False,
         "execution_authority": "NONE",
         "broker_calls": 0,

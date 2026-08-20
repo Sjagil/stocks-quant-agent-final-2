@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pandas as pd
 
 from stocks.research.strategy_redundancy import pairwise_redundancy
@@ -21,3 +23,11 @@ def test_identical_entry_sets_are_flagged():
     assert len(pairs) == 1
     assert pairs.iloc[0]["entry_jaccard"] == 1.0
     assert bool(pairs.iloc[0]["redundancy_flag"]) is True
+
+
+def test_redundancy_audit_includes_generated_strategy_trades():
+    root = Path(__file__).resolve().parents[1]
+    text = (
+        root / "scripts/run_strategy_redundancy_audit.py"
+    ).read_text(encoding="utf-8")
+    assert "strategy_generation_v2_22/survivor_trades.parquet" in text
