@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 import hashlib
 import json
 from dataclasses import asdict, dataclass
@@ -81,7 +83,7 @@ def _date_available_at(value: Any, *, lag_days: int) -> pd.Timestamp | None:
     has_clock = "T" in text or ":" in text
     if has_clock:
         return parsed
-    return parsed.normalize() + pd.Timedelta(days=int(lag_days))
+    return parsed.normalize() + timedelta(days=int(lag_days))
 
 
 def _reason_text(value: Any) -> str:

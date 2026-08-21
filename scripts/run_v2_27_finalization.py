@@ -30,6 +30,8 @@ def main() -> int:
                 str(PYTHON), "-m", "pytest", "-q",
                 "tests/test_eodhd_hydration_freshness_v2_26_1.py",
                 "tests/test_provider_federation_v2_27.py",
+                "tests/test_provider_federation_security_v2_27_3.py",
+                "tests/test_repo_owned_deprecation_hotspots_v2_27_3.py",
                 "tests/test_current_session_market_bridge_v2_27.py",
                 "tests/test_current_session_bridge_short_circuit_v2_27_2.py",
                 "tests/test_start_preflight_partial_freshness_v2_27.py",
@@ -55,6 +57,9 @@ def main() -> int:
     print("IBKR_CURRENT_SESSION_READ_ONLY True")
     print("IBKR_ONLY_WHEN_TAIL_REQUIRED True")
     print("SOURCE_FABRIC_EXTERNAL_PROVIDERS True")
+    print("FEDERATION_SECRET_REDACTION_BEFORE_WRITE True")
+    print("FEDERATION_FAILURE_ISOLATION True")
+    print("REPO_OWNED_TIMEDELTA_CLEANUP True")
     print("STOCKS_REFERENCE_FULL_DATA_FEDERATION True")
     print("OPENEXCHANGERATES_PRIMARY_FX True")
     print("DONOR_FRED_MACRO_REFRESH True")

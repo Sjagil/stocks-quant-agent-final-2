@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -63,7 +65,7 @@ def normalize_eodhd_daily(
     # across DST transitions instead of shifting dates at 00:00 UTC.
     local_close = (
         raw["date"].dt.normalize()
-        + pd.Timedelta(hours=16)
+        + timedelta(hours=16)
     )
     timestamps = (
         pd.DatetimeIndex(local_close)

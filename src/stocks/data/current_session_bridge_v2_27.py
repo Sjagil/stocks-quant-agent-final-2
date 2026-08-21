@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -39,7 +39,7 @@ def latest_completed_nyse_session_v227(
     decision_time: datetime | pd.Timestamp,
 ) -> str:
     now = _utc(decision_time)
-    schedule = _nyse_schedule(now - pd.Timedelta("14D"), now)
+    schedule = _nyse_schedule(now - timedelta(days=14), now)
     closes = pd.to_datetime(schedule["market_close"], utc=True)
     completed = schedule.loc[closes <= now]
     if completed.empty:
@@ -53,7 +53,7 @@ def expected_closed_nyse_1h_starts_v227(
     start_date: pd.Timestamp | None = None,
 ) -> pd.DatetimeIndex:
     now = _utc(decision_time)
-    first = _utc(start_date) if start_date is not None else now - pd.Timedelta("10D")
+    first = _utc(start_date) if start_date is not None else now - timedelta(days=10)
     schedule = _nyse_schedule(first, now)
     starts: list[pd.Timestamp] = []
     for _, row in schedule.iterrows():
@@ -61,10 +61,10 @@ def expected_closed_nyse_1h_starts_v227(
         market_close = _utc(row["market_close"])
         cursor = market_open
         while cursor < market_close:
-            available_at = min(cursor + pd.Timedelta("1h"), market_close)
+            available_at = min(cursor + timedelta(hours=1), market_close)
             if available_at <= now:
                 starts.append(cursor)
-            cursor += pd.Timedelta("1h")
+            cursor += timedelta(hours=1)
     return pd.DatetimeIndex(starts, name="timestamp")
 
 
@@ -98,7 +98,7 @@ def aggregate_ibkr_30m_to_nyse_1h_v227(
     if raw.empty:
         raise ValueError("IBKR_30M_EMPTY")
 
-    schedule = _nyse_schedule(raw.index.min() - pd.Timedelta("1D"), now)
+    schedule = _nyse_schedule(raw.index.min() - timedelta(days=1), now)
     expected_closed: set[pd.Timestamp] = set()
     bucket_map: dict[pd.Timestamp, pd.Timestamp] = {}
     bucket_expected: dict[pd.Timestamp, list[pd.Timestamp]] = {}
@@ -108,14 +108,14 @@ def aggregate_ibkr_30m_to_nyse_1h_v227(
         market_close = _utc(row["market_close"])
         cursor = market_open
         while cursor < market_close:
-            end = min(cursor + pd.Timedelta("30min"), market_close)
+            end = min(cursor + timedelta(minutes=30), market_close)
             if end <= now:
                 expected_closed.add(cursor)
                 bucket_number = int((cursor - market_open).total_seconds() // 3600)
-                bucket = market_open + pd.Timedelta(f"{bucket_number}h")
+                bucket = market_open + timedelta(hours=bucket_number)
                 bucket_map[cursor] = bucket
                 bucket_expected.setdefault(bucket, []).append(cursor)
-            cursor += pd.Timedelta("30min")
+            cursor += timedelta(minutes=30)
 
     accepted = raw.loc[raw.index.isin(expected_closed)].copy()
     if accepted.empty:

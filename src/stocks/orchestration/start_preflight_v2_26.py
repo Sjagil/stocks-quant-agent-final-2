@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -26,7 +28,7 @@ def expected_latest_closed_nyse_1h_bar_v226(decision_time: datetime | pd.Timesta
     now = _utc(decision_time)
     calendar = mcal.get_calendar("NYSE")
     schedule = calendar.schedule(
-        start_date=(now - pd.Timedelta(days=10)).date(),
+        start_date=(now - timedelta(days=10)).date(),
         end_date=now.date(),
     )
     candidates: list[pd.Timestamp] = []
@@ -35,10 +37,10 @@ def expected_latest_closed_nyse_1h_bar_v226(decision_time: datetime | pd.Timesta
         market_close = _utc(row["market_close"])
         start = market_open
         while start < market_close:
-            available = min(start + pd.Timedelta(hours=1), market_close)
+            available = min(start + timedelta(hours=1), market_close)
             if available <= now:
                 candidates.append(start)
-            start += pd.Timedelta(hours=1)
+            start += timedelta(hours=1)
     if not candidates:
         raise ValueError("NO_CLOSED_NYSE_1H_BAR_AVAILABLE")
     return max(candidates)

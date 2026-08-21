@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 import math
 from pathlib import Path
 from typing import Mapping
@@ -17,13 +19,9 @@ from stocks.research.strategy_factory_1h import (
 )
 
 
-FIFTEEN_MINUTES = pd.Timedelta(
-    minutes=15
-)
+FIFTEEN_MINUTES = timedelta(minutes=15)
 
-ONE_HOUR = pd.Timedelta(
-    hours=1
-)
+ONE_HOUR = timedelta(hours=1)
 
 
 def utc_timestamp(

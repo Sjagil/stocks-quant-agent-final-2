@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 from dataclasses import dataclass
 
 import pandas as pd
@@ -95,13 +97,9 @@ def intraday_availability(
 
     schedule = _nyse_schedule(
         result.index.min()
-        - pd.Timedelta(
-            days=3
-        ),
+        - timedelta(days=3),
         result.index.max()
-        + pd.Timedelta(
-            days=3
-        ),
+        + timedelta(days=3),
     )
 
     sessions = {}
@@ -160,9 +158,7 @@ def intraday_availability(
 
         candidate = (
             bar_time
-            + pd.Timedelta(
-                minutes=minutes
-            )
+            + timedelta(minutes=minutes)
         )
 
         keep_positions.append(
@@ -204,13 +200,9 @@ def daily_availability(
 
     schedule = _nyse_schedule(
         result.index.min()
-        - pd.Timedelta(
-            days=3
-        ),
+        - timedelta(days=3),
         result.index.max()
-        + pd.Timedelta(
-            days=3
-        ),
+        + timedelta(days=3),
     )
 
     closes_by_date = {
@@ -276,16 +268,12 @@ def weekly_availability(
 
     start = (
         result.index.min()
-        - pd.Timedelta(
-            days=7
-        )
+        - timedelta(days=7)
     )
 
     end = (
         result.index.max()
-        + pd.Timedelta(
-            days=10
-        )
+        + timedelta(days=10)
     )
 
     schedule = _nyse_schedule(

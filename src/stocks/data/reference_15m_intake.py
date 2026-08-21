@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 import json
 from pathlib import Path
 from typing import Any
@@ -263,9 +265,7 @@ def closed_rth_15m(
     pieces = []
     expected_closed_bars = 0
 
-    bar_size = pd.Timedelta(
-        minutes=15
-    )
+    bar_size = timedelta(minutes=15)
 
     for _, session in (
         schedule.iterrows()

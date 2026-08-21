@@ -1,3 +1,4 @@
+from datetime import timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -15,7 +16,7 @@ def test_identical_entry_sets_are_flagged():
                     "hypothesis_id": hypothesis,
                     "symbol": "XYZ",
                     "entry_time": timestamp,
-                    "exit_time": timestamp + pd.Timedelta(hours=2),
+                    "exit_time": timestamp + timedelta(hours=2),
                     "gross_return": 0.01 if i % 2 == 0 else -0.005,
                 }
             )

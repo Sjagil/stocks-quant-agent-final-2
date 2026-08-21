@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 import json
 import math
 import runpy
@@ -261,9 +263,7 @@ def _trade_rows(
 ) -> list[dict]:
     rows = []
     for index, gross_return in enumerate(returns):
-        entry = pd.Timestamp("2024-01-01", tz="UTC") + pd.Timedelta(
-            days=offset + index * 2
-        )
+        entry = pd.Timestamp("2024-01-01", tz="UTC") + timedelta(days=offset + index * 2)
         rows.append(
             {
                 "hypothesis_id": hypothesis_id,
@@ -271,7 +271,7 @@ def _trade_rows(
                 "family": hypothesis_id,
                 "symbol": "AAPL" if index % 2 == 0 else "MSFT",
                 "entry_time": entry,
-                "exit_time": entry + pd.Timedelta(hours=4),
+                "exit_time": entry + timedelta(hours=4),
                 "gross_return": gross_return,
                 "duration_bars": 4,
                 "forced": False,

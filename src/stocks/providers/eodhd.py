@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 from dataclasses import dataclass
 from typing import Any
 
@@ -77,9 +79,7 @@ def chunk_windows(
             "start must be before end_exclusive"
         )
 
-    step = pd.Timedelta(
-        days=int(chunk_days)
-    )
+    step = timedelta(days=int(chunk_days))
 
     windows: list[
         tuple[pd.Timestamp, pd.Timestamp]

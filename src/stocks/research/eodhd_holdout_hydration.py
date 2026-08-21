@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 import math
 from dataclasses import dataclass
 from pathlib import Path
@@ -220,7 +222,7 @@ def closed_nyse_rth_1h(
         while cursor < market_close:
             if cursor <= cutoff:
                 expected.append(cursor)
-            cursor += pd.Timedelta(hours=1)
+            cursor += timedelta(hours=1)
     expected_index = pd.DatetimeIndex(expected, name="timestamp")
     if expected_index.empty:
         raise ValueError("no expected NYSE RTH 1h buckets")
@@ -270,7 +272,7 @@ def _hydration_cutoff(
         value = as_of.strip()
         if len(value) == 10 and value[4] == "-" and value[7] == "-":
             start = pd.Timestamp(value, tz="UTC")
-            return start + pd.Timedelta("1D") - pd.Timedelta("1us")
+            return start + timedelta(days=1) - timedelta(microseconds=1)
     return utc_timestamp(as_of)
 
 
@@ -280,7 +282,7 @@ def expected_latest_closed_nyse_rth_1h_start(
     cutoff = _hydration_cutoff(as_of)
     calendar = mcal.get_calendar("NYSE")
     schedule = calendar.schedule(
-        start_date=(cutoff - pd.Timedelta("10D")).date(),
+        start_date=(cutoff - timedelta(days=10)).date(),
         end_date=cutoff.date(),
     )
     candidates: list[pd.Timestamp] = []
@@ -289,10 +291,10 @@ def expected_latest_closed_nyse_rth_1h_start(
         market_close = pd.Timestamp(session["market_close"]).tz_convert("UTC")
         cursor = market_open
         while cursor < market_close:
-            available_at = min(cursor + pd.Timedelta("1h"), market_close)
+            available_at = min(cursor + timedelta(hours=1), market_close)
             if available_at <= cutoff:
                 candidates.append(cursor)
-            cursor += pd.Timedelta("1h")
+            cursor += timedelta(hours=1)
     if not candidates:
         raise ValueError("no closed NYSE RTH 1h bucket available")
     return max(candidates)
@@ -450,7 +452,7 @@ def hydrate_symbol(
             reason=None,
         )
     end_exclusive = (
-        pd.Timestamp(as_of).normalize() + pd.Timedelta(days=1)
+        pd.Timestamp(as_of).normalize() + timedelta(days=1)
     ).strftime("%Y-%m-%d")
     raw = fetch_native_1h(
         symbol,
