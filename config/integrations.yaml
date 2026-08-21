@@ -100,10 +100,12 @@ integrations:
     - catalog
     - discovery_context
     - market_context
+    - macro_refresh_read_only
     pass_env:
     - EODHD_API_KEY
     - EOD_API_KEY
     - EODHISTORICALDATA_API_KEY
+    - FRED_API_KEY
     timeout_seconds: 900
   finrl:
     enabled: true
@@ -169,6 +171,7 @@ integrations:
     capabilities:
     - health
     - broker_snapshot_read_only
+    - historical_bars_read_only
     pass_env:
     - IBKR_HOST
     - IBKR_PORT
@@ -180,7 +183,10 @@ integrations:
     - IBKR_RECON_COMMISSION_GRACE_SECONDS
     - IBKR_RECON_SNAPSHOT_STABILITY_DELAY_SECONDS
     - IBKR_EXECUTION_STATE_MAX_AGE_SECONDS
-    timeout_seconds: 90
+    - IBKR_MARKET_DATA_CLIENT_ID
+    - IBKR_HISTORICAL_REQUEST_TIMEOUT_SECONDS
+    - IBKR_HISTORICAL_REQUEST_SPACING_SECONDS
+    timeout_seconds: 180
     required: false
   kronos:
     enabled: true

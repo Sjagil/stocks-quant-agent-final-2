@@ -80,10 +80,40 @@ def build_start_preflight_v226(
             blockers.append("DYNAMIC_SIGNAL_BAR_TIME_INVALID")
         else:
             latest_signal_bar = parsed.max()
-            if latest_signal_bar < expected_bar:
+            stale_dynamic_symbols: list[str] = []
+            future_dynamic_symbols: list[str] = []
+            if "symbol" in signals.columns:
+                per_symbol = (
+                    pd.DataFrame({
+                        "symbol": signals["symbol"].astype(str).str.upper(),
+                        "_bar": parsed,
+                    })
+                    .dropna(subset=["_bar"])
+                    .groupby("symbol")["_bar"]
+                    .max()
+                )
+                stale_dynamic_symbols = sorted(
+                    str(symbol)
+                    for symbol, value in per_symbol.items()
+                    if value < expected_bar
+                )
+                future_dynamic_symbols = sorted(
+                    str(symbol)
+                    for symbol, value in per_symbol.items()
+                    if value > expected_bar
+                )
+            elif latest_signal_bar < expected_bar:
+                stale_dynamic_symbols = ["UNKNOWN"]
+            elif latest_signal_bar > expected_bar:
+                future_dynamic_symbols = ["UNKNOWN"]
+
+            if stale_dynamic_symbols:
                 blockers.append("DYNAMIC_MARKET_DATA_STALE")
-            if latest_signal_bar > expected_bar:
+            if future_dynamic_symbols:
                 blockers.append("DYNAMIC_SIGNAL_BAR_FROM_FUTURE_SESSION")
+
+    stale_dynamic_symbols = locals().get("stale_dynamic_symbols", [])
+    future_dynamic_symbols = locals().get("future_dynamic_symbols", [])
 
     verified_overlap = 0
     latest_shariah_snapshot = None
@@ -170,6 +200,12 @@ def build_start_preflight_v226(
         "expected_latest_closed_1h_bar": expected_bar.isoformat(),
         "latest_dynamic_signal_bar": (
             latest_signal_bar.isoformat() if latest_signal_bar is not None else None
+        ),
+        "stale_dynamic_symbols": stale_dynamic_symbols,
+        "future_dynamic_symbols": future_dynamic_symbols,
+        "all_dynamic_symbols_session_fresh": (
+            not stale_dynamic_symbols
+            and not future_dynamic_symbols
         ),
         "latest_shariah_snapshot": (
             latest_shariah_snapshot.isoformat() if latest_shariah_snapshot is not None else None

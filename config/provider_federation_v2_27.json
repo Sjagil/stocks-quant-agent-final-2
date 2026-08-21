@@ -1,0 +1,39 @@
+{
+  "schema": "provider_federation_config_v2_27_1",
+  "external_source_fabric": {
+    "enabled": true,
+    "preserve_source_provenance": true,
+    "average_provider_ohlc": false,
+    "forward_fill_missing_market_bars": false,
+    "fabricate_missing_volume": false
+  },
+  "stocks_reference": {
+    "enabled": true,
+    "repo": "references/Stocks",
+    "actions": [
+      "macro_refresh_read_only",
+      "screener_candidates",
+      "discovery_context",
+      "multitimeframe_collect",
+      "news_link",
+      "market_context"
+    ],
+    "multitimeframe_providers": ["eodhd", "yfinance"],
+    "multitimeframe_intervals": ["15m", "1h", "1d"]
+  },
+  "paid_primary": {
+    "historical_market_data": "eodhd",
+    "fx": "openexchangerates"
+  },
+  "market_freshness": {
+    "historical_backfill": "eodhd",
+    "current_session_tail": "ibkr_read_only",
+    "fallback_sources_are_research_crosschecks_only": true
+  },
+  "authority": {
+    "strategy_authority": "NONE",
+    "execution_authority": "NONE",
+    "broker_submission_enabled": false,
+    "automatic_live_promotion": false
+  }
+}

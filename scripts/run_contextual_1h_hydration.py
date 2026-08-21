@@ -139,7 +139,11 @@ def main() -> int:
                     client=http,
                 )
                 record = {**row, **result.to_dict()}
-                if result.status in {"HYDRATED", "EXISTING_USABLE"}:
+                if result.status in {
+                    "HYDRATED",
+                    "HYDRATED_PROVIDER_LAG",
+                    "EXISTING_USABLE",
+                }:
                     usable += 1
                 print(
                     "CONTEXT_HYDRATE",
@@ -176,12 +180,30 @@ def main() -> int:
 
     if not frame.empty and "status" in frame.columns:
         usable_frame = frame.loc[
-            frame["status"].isin(["HYDRATED", "EXISTING_USABLE"])
+            frame["status"].isin([
+                "HYDRATED",
+                "HYDRATED_PROVIDER_LAG",
+                "EXISTING_USABLE",
+            ])
         ].copy()
     else:
         usable_frame = pd.DataFrame()
 
     usable_frame.to_csv(OUTPUT / "usable_candidates.csv", index=False)
+
+    if not usable_frame.empty:
+        operational_fresh_frame = usable_frame.loc[
+            usable_frame["status"].isin([
+                "HYDRATED",
+                "EXISTING_USABLE",
+            ])
+        ].copy()
+    else:
+        operational_fresh_frame = usable_frame.copy()
+    operational_fresh_frame.to_csv(
+        OUTPUT / "operationally_fresh_candidates.csv",
+        index=False,
+    )
 
     audit = {
         "schema": "contextual_1h_hydration_v2_6",
@@ -189,6 +211,10 @@ def main() -> int:
         "target_usable": int(args.target_usable),
         "attempts": int(attempts),
         "usable": int(len(usable_frame)),
+        "operationally_fresh": int(len(operational_fresh_frame)),
+        "provider_lag": int(
+            (usable_frame["status"] == "HYDRATED_PROVIDER_LAG").sum()
+        ) if not usable_frame.empty else 0,
         "target_reached": len(usable_frame) >= int(args.target_usable),
         "hard_business_exclusions": int(
             (
