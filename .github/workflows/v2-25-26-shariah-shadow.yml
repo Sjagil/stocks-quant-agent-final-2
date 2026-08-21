@@ -1,0 +1,33 @@
+name: v2.25-26 PIT Shariah + Shadow Sizing
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test-v2-25-26:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+      - name: Focused v2.25/v2.26 tests
+        run: |
+          python -m pytest -q \
+            tests/test_pit_shariah_v2_25.py \
+            tests/test_dynamic_shadow_target_book_v2_26.py \
+            tests/test_start_preflight_v2_26.py \
+            tests/test_pit_shariah_rl_v2_25.py \
+            tests/test_dynamic_validated_deployment_v2_24.py \
+            tests/test_pit_training_v2_24.py \
+            tests/test_generated_forward_adapters_v2_23.py
+      - name: Compile
+        run: python -m compileall -q src scripts
+      - name: Dependency check
+        run: python -m pip check

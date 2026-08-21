@@ -20,6 +20,8 @@ POLICY_PATH = ROOT / "config/strategy_validation_pipeline.json"
 REGISTRY_PATH = ROOT / "artifacts/research_runtime/research_candidate_registry/registry.csv"
 VALIDATED_PATH = ROOT / "artifacts/research_runtime/validated_strategy_registry/registry.csv"
 CROSSCHECK_PATH = ROOT / "artifacts/research_runtime/indicator_pybroker_crosscheck/summary.csv"
+CROSS_ENGINE_PATH = ROOT / "artifacts/research_runtime/cross_engine_strategy_validation_v2_17/strategy_summary.csv"
+GENERATED_CROSS_ENGINE_PATH = ROOT / "artifacts/research_runtime/strategy_generation_v2_22/cross_engine/strategy_summary.csv"
 OUTPUT = ROOT / "artifacts/research_runtime/dynamic_universe_generalization"
 
 
@@ -32,6 +34,8 @@ def main() -> int:
     registry = pd.read_csv(REGISTRY_PATH)
     validated = pd.read_csv(VALIDATED_PATH) if VALIDATED_PATH.is_file() else pd.DataFrame()
     cross = pd.read_csv(CROSSCHECK_PATH) if CROSSCHECK_PATH.is_file() else pd.DataFrame()
+    cross_engine = pd.read_csv(CROSS_ENGINE_PATH) if CROSS_ENGINE_PATH.is_file() else pd.DataFrame()
+    generated_cross_engine = pd.read_csv(GENERATED_CROSS_ENGINE_PATH) if GENERATED_CROSS_ENGINE_PATH.is_file() else pd.DataFrame()
 
     plan = build_universe_plan(
         ROOT,
@@ -65,6 +69,12 @@ def main() -> int:
 
     validated_map = {str(row["hypothesis_id"]): row for row in validated.to_dict(orient="records")} if not validated.empty else {}
     cross_map = {str(row["hypothesis_id"]): row for row in cross.to_dict(orient="records")} if not cross.empty else {}
+    cross_engine_map = {str(row["hypothesis_id"]): row for row in cross_engine.to_dict(orient="records")} if not cross_engine.empty else {}
+    if not generated_cross_engine.empty:
+        cross_engine_map.update({
+            str(row["hypothesis_id"]): row
+            for row in generated_cross_engine.to_dict(orient="records")
+        })
     summary_rows: list[dict] = []
     fold_parts: list[pd.DataFrame] = []
     symbol_parts: list[pd.DataFrame] = []
@@ -93,7 +103,10 @@ def main() -> int:
         execution_contract = "NEXT_OPEN_REPLAY"
         if source_engine == "strategy_factory_1h" and hypothesis_id in validated_map:
             execution_contract = str(validated_map[hypothesis_id].get("execution_contract") or "NEXT_OPEN_REPLAY")
-        elif source_engine == "indicator_discovery_v1":
+        elif source_engine in {
+            "indicator_discovery_v1",
+            "strategy_generation_v2_22",
+        }:
             execution_contract = "NEXT_OPEN_REPLAY"
 
         if execution_contract != "NEXT_OPEN_REPLAY":
@@ -114,6 +127,25 @@ def main() -> int:
         if source_engine == "indicator_discovery_v1":
             cross_status = str(cross_map.get(hypothesis_id, {}).get("crosscheck_status") or "PENDING")
             if cross_status not in {"CROSS_ENGINE_VALIDATED", "CROSS_ENGINE_PROVISIONAL"}:
+                summary_rows.append({
+                    "hypothesis_id": hypothesis_id,
+                    "strategy": row["strategy"],
+                    "family": row["family"],
+                    "source_engine": source_engine,
+                    "execution_contract": execution_contract,
+                    "generalization_status": "WAITING_CROSS_ENGINE",
+                    "generalization_passed": False,
+                    "generalization_evaluable": False,
+                    "unseen_symbols_available": len(frames),
+                    "execution_authority": "NONE",
+                })
+                continue
+        if source_engine == "strategy_generation_v2_22":
+            cross_status = str(
+                cross_engine_map.get(hypothesis_id, {}).get("status")
+                or "PENDING"
+            )
+            if cross_status != "CROSS_ENGINE_VALIDATED":
                 summary_rows.append({
                     "hypothesis_id": hypothesis_id,
                     "strategy": row["strategy"],

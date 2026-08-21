@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 import math
 from dataclasses import dataclass
 from pathlib import Path
@@ -220,7 +222,7 @@ def closed_nyse_rth_1h(
         while cursor < market_close:
             if cursor <= cutoff:
                 expected.append(cursor)
-            cursor += pd.Timedelta(hours=1)
+            cursor += timedelta(hours=1)
     expected_index = pd.DatetimeIndex(expected, name="timestamp")
     if expected_index.empty:
         raise ValueError("no expected NYSE RTH 1h buckets")
@@ -263,6 +265,41 @@ def quality_audit(frame: pd.DataFrame) -> dict[str, Any]:
     }
 
 
+def _hydration_cutoff(
+    as_of: str | pd.Timestamp,
+) -> pd.Timestamp:
+    if isinstance(as_of, str):
+        value = as_of.strip()
+        if len(value) == 10 and value[4] == "-" and value[7] == "-":
+            start = pd.Timestamp(value, tz="UTC")
+            return start + timedelta(days=1) - timedelta(microseconds=1)
+    return utc_timestamp(as_of)
+
+
+def expected_latest_closed_nyse_rth_1h_start(
+    as_of: str | pd.Timestamp,
+) -> pd.Timestamp:
+    cutoff = _hydration_cutoff(as_of)
+    calendar = mcal.get_calendar("NYSE")
+    schedule = calendar.schedule(
+        start_date=(cutoff - timedelta(days=10)).date(),
+        end_date=cutoff.date(),
+    )
+    candidates: list[pd.Timestamp] = []
+    for _, session in schedule.iterrows():
+        market_open = pd.Timestamp(session["market_open"]).tz_convert("UTC")
+        market_close = pd.Timestamp(session["market_close"]).tz_convert("UTC")
+        cursor = market_open
+        while cursor < market_close:
+            available_at = min(cursor + timedelta(hours=1), market_close)
+            if available_at <= cutoff:
+                candidates.append(cursor)
+            cursor += timedelta(hours=1)
+    if not candidates:
+        raise ValueError("no closed NYSE RTH 1h bucket available")
+    return max(candidates)
+
+
 def existing_hourly_state(
     project_root: str | Path,
     symbol: str,
@@ -273,6 +310,7 @@ def existing_hourly_state(
 ) -> dict[str, Any]:
     root = Path(project_root).resolve()
     symbol = symbol.upper()
+    expected_last = expected_latest_closed_nyse_rth_1h_start(as_of)
     candidates = (
         root / "data/canonical/provider_fabric" / f"{symbol}_1h.parquet",
         root / "data/adjusted" / f"{symbol}_1h.parquet",
@@ -291,6 +329,7 @@ def existing_hourly_state(
                 "usable": False,
                 "path": str(path),
                 "rows": 0,
+                "expected_last": expected_last.isoformat(),
                 "reason": f"INVALID_EXISTING:{type(exc).__name__}:{exc}",
             }
         if frame.empty:
@@ -298,22 +337,40 @@ def existing_hourly_state(
                 "usable": False,
                 "path": str(path),
                 "rows": 0,
+                "expected_last": expected_last.isoformat(),
                 "reason": "EMPTY_EXISTING",
             }
         last = pd.Timestamp(frame["date"].max())
-        cutoff = utc_timestamp(as_of)
         last = last.tz_localize("UTC") if last.tzinfo is None else last.tz_convert("UTC")
-        stale_days = int(max((cutoff - last).days, 0))
-        usable = len(frame) >= int(minimum_rows) and stale_days <= maximum_staleness_days
+        rows_ok = len(frame) >= int(minimum_rows)
+        session_fresh = last == expected_last
+        stale_seconds = max((expected_last - last).total_seconds(), 0.0)
+        if not rows_ok:
+            reason = "INSUFFICIENT_ROWS"
+        elif last < expected_last:
+            reason = "STALE_EXISTING_LATEST_SESSION_BAR_MISSING"
+        elif last > expected_last:
+            reason = "EXISTING_DATA_AFTER_EXPECTED_CLOSED_BAR"
+        else:
+            reason = None
         return {
-            "usable": bool(usable),
+            "usable": bool(rows_ok and session_fresh),
             "path": str(path),
             "rows": int(len(frame)),
             "last": last.isoformat(),
-            "stale_days": stale_days,
-            "reason": None if usable else "INSUFFICIENT_ROWS_OR_STALE",
+            "expected_last": expected_last.isoformat(),
+            "stale_seconds": float(stale_seconds),
+            "stale_days": int(stale_seconds // 86400),
+            "session_fresh": bool(session_fresh),
+            "reason": reason,
         }
-    return {"usable": False, "path": None, "rows": 0, "reason": "MISSING_1H"}
+    return {
+        "usable": False,
+        "path": None,
+        "rows": 0,
+        "expected_last": expected_last.isoformat(),
+        "reason": "MISSING_1H",
+    }
 
 
 def fetch_native_1h(
@@ -395,7 +452,7 @@ def hydrate_symbol(
             reason=None,
         )
     end_exclusive = (
-        pd.Timestamp(as_of).normalize() + pd.Timedelta(days=1)
+        pd.Timestamp(as_of).normalize() + timedelta(days=1)
     ).strftime("%Y-%m-%d")
     raw = fetch_native_1h(
         symbol,
@@ -453,15 +510,26 @@ def hydrate_symbol(
         ),
         extra_metadata={"session_audit": session_audit, "quality_audit": audit},
     )
+    expected_latest = expected_latest_closed_nyse_rth_1h_start(as_of)
+    actual_latest = rth.index.max()
+    operationally_fresh = actual_latest == expected_latest
     return HydrationResult(
         symbol=symbol,
-        status="HYDRATED",
+        status=(
+            "HYDRATED"
+            if operationally_fresh
+            else "HYDRATED_PROVIDER_LAG"
+        ),
         rows=int(len(rth)),
         first=rth.index.min().isoformat(),
-        last=rth.index.max().isoformat(),
+        last=actual_latest.isoformat(),
         split_count=int(len(splits)),
         coverage=float(session_audit["coverage"]),
         provider_requests=2,
         output=str(target.resolve()),
-        reason=None,
+        reason=(
+            None
+            if operationally_fresh
+            else "PROVIDER_NOT_FINALIZED_TO_EXPECTED_LATEST_CLOSED_BAR"
+        ),
     )

@@ -1,0 +1,36 @@
+schema: multitimeframe_research_v2_15_1
+timeframes:
+  execution: 15m
+  trigger: 1h
+  setup: [2h, 4h]
+  regime: [1d, 1w]
+
+alignment:
+  higher_timeframe_one_bar_lag: true
+  require_timeframes: [15m, 1h, 2h, 4h, 1d, 1w]
+  allow_partial_higher_bar: false
+
+backtest:
+  base_cost_bps_per_side: 5.0
+  stress_cost_bps_per_side: 10.0
+  folds: 2
+  purge_bars: 64
+  min_train_trades: 20
+  min_valid_trades: 8
+  min_test_trades: 8
+  top_per_family: 2
+
+promotion:
+  positive_test_fold_ratio: 0.75
+  stress_positive_test_fold_ratio: 0.75
+  median_test_expectancy_bps: 0.0
+  worst_test_expectancy_bps: 0.0
+  median_stress_expectancy_bps: 0.0
+  median_profit_factor: 1.0
+  cross_engine_validation_required: true
+  dynamic_universe_generalization_required: true
+
+authority:
+  automatic_live_promotion: false
+  broker_order_submission: false
+  execution_authority: NONE

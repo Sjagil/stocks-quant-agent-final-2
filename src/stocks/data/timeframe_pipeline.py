@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -135,9 +137,7 @@ def rolling_intraday_context(
     pieces = []
 
     expected_spacing = (
-        pd.Timedelta(
-            minutes=15
-        )
+        timedelta(minutes=15)
     )
 
     for _, session in work.groupby(

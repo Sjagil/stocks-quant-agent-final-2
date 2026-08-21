@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -73,9 +74,15 @@ def classify_generalization(
         failures.append("stress_positive_symbol_ratio")
     if max_symbol_trade_share > float(policy["max_symbol_trade_share"]):
         failures.append("max_symbol_trade_share")
-    if bool(policy.get("require_positive_median_expectancy", True)) and median_expectancy_bps <= 0:
+    if (
+        bool(policy.get("require_positive_median_expectancy", True))
+        and median_expectancy_bps <= 0
+    ):
         failures.append("median_expectancy_bps")
-    if bool(policy.get("require_positive_median_stress_expectancy", True)) and median_stress_expectancy_bps <= 0:
+    if (
+        bool(policy.get("require_positive_median_stress_expectancy", True))
+        and median_stress_expectancy_bps <= 0
+    ):
         failures.append("median_stress_expectancy_bps")
 
     if failures:
@@ -122,7 +129,10 @@ def promotion_from_evidence(
     if crosscheck == "CROSS_ENGINE_PROVISIONAL":
         return "VALIDATION_QUEUE"
 
-    if crosscheck == "CROSS_ENGINE_REJECT":
+    if crosscheck in {
+        "CROSS_ENGINE_REJECT",
+        "CROSS_ENGINE_NOT_VALIDATED",
+    }:
         return "REJECTED_AFTER_CROSSCHECK"
 
     return "VALIDATION_QUEUE"

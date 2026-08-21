@@ -1,3 +1,4 @@
+from datetime import timedelta
 import numpy as np
 import pandas as pd
 
@@ -20,13 +21,8 @@ def test_hourly_data_is_not_annualized_as_daily() -> None:
         for hour in range(7):
             timestamps.append(
                 day
-                + pd.Timedelta(
-                    hours=14,
-                    minutes=30,
-                )
-                + pd.Timedelta(
-                    hours=hour,
-                )
+                + timedelta(hours=14, minutes=30)
+                + timedelta(hours=hour)
             )
 
     factor = annualization_factor(
