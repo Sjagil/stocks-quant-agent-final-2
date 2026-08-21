@@ -1,0 +1,42 @@
+{
+  "schema": "alpha_factory_feature_governance_v2_31",
+  "authority": "RESEARCH_SHADOW_ONLY",
+  "execution_authority": "NONE",
+  "research_compliance_gate_applied": false,
+  "feature_governance": {
+    "min_ic_periods": 8,
+    "min_abs_mean_rank_ic": 0.01,
+    "min_abs_icir": 0.10,
+    "min_sign_consistency": 0.55,
+    "max_redundancy": 0.95,
+    "max_vif": 20.0,
+    "max_psi": 0.25,
+    "min_stability_score": 0.20
+  },
+  "technical": {
+    "trend_window": 20,
+    "kaufman_window": 20,
+    "risk_adjusted_momentum_window": 20,
+    "volatility_short_window": 10,
+    "volatility_long_window": 40
+  },
+  "factor_model": {
+    "rolling_window": 60,
+    "minimum_observations": 40,
+    "residual_momentum_window": 20
+  },
+  "news": {
+    "duplicate_penalty": "1/sqrt(cluster_size)",
+    "time_decay": "exp(-ln(2)*age/half_life)",
+    "future_events_allowed": false
+  },
+  "pit": {
+    "join_direction": "backward",
+    "future_fact_join_allowed": false
+  },
+  "safety": {
+    "broker_submission_enabled": false,
+    "automatic_live_promotion": false,
+    "order_calls": 0
+  }
+}
