@@ -8,7 +8,11 @@ from pathlib import Path
 
 import pandas as pd
 
-from stocks.data.current_session_bridge_v2_27 import bridge_symbol_v227, write_bridge_audit_v227
+from stocks.data.current_session_bridge_v2_27 import (
+    bridge_symbol_v227,
+    canonical_freshness_v227,
+    write_bridge_audit_v227,
+)
 from stocks.integrations.registry import IntegrationRegistry
 from stocks.integrations.runner import IntegrationRunner
 
@@ -32,18 +36,38 @@ def _symbols(path: Path, limit: int) -> list[str]:
     return result
 
 
+def _blocked_from_integration(symbol: str, reason: str, *, provider: dict | None = None) -> dict:
+    return {
+        "symbol": symbol,
+        "status": "BLOCKED",
+        "operationally_fresh": False,
+        "blockers": [reason],
+        "provider": provider or {},
+        "execution_authority": "NONE",
+        "broker_write_calls": 0,
+        "order_calls": 0,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--symbols-from",
-        default=str(ROOT / "artifacts/research_runtime/contextual_1h_hydration/usable_candidates.csv"),
+        default=str(
+            ROOT
+            / "artifacts/research_runtime/contextual_1h_hydration/usable_candidates.csv"
+        ),
     )
     parser.add_argument("--limit", type=int, default=12)
     parser.add_argument("--decision-time", default=None)
     parser.add_argument("--integration", default="stocks_ibkr_reference")
     args = parser.parse_args()
 
-    decision_time = pd.Timestamp(args.decision_time) if args.decision_time else pd.Timestamp(datetime.now(UTC))
+    decision_time = (
+        pd.Timestamp(args.decision_time)
+        if args.decision_time
+        else pd.Timestamp(datetime.now(UTC))
+    )
     decision_time = (
         decision_time.tz_localize("UTC")
         if decision_time.tzinfo is None
@@ -54,84 +78,157 @@ def main() -> int:
         print("CURRENT_SESSION_MARKET_BRIDGE_V2_27 BLOCKED ZERO_SYMBOLS")
         return 2
 
-    registry = IntegrationRegistry.load(ROOT / "config/integrations.yaml", project_root=ROOT)
-    runner = IntegrationRunner(registry)
-    response = runner.run(
-        args.integration,
-        "historical_bars_read_only",
-        {
-            "symbols": symbols,
-            "duration": "5 D",
-            "bar_size": "30 mins",
-            "what_to_show": "TRADES",
-            "use_rth": True,
-            "keep_up_to_date": False,
-        },
-        timeout_seconds=180,
-    )
-
     OUTPUT.mkdir(parents=True, exist_ok=True)
-    (OUTPUT / "integration_response.json").write_text(
-        json.dumps(response.to_dict(), indent=2, sort_keys=True, default=str) + "\n",
-        encoding="utf-8",
-    )
-    if not response.ok or not response.artifacts:
-        print("CURRENT_SESSION_MARKET_BRIDGE_V2_27 BLOCKED INTEGRATION_FAILED", response.error)
-        print("BROKER_CALLS 0")
-        print("ORDER_CALLS 0")
-        print("EXECUTION_AUTHORITY NONE")
-        return 2
 
-    payload = json.loads(Path(response.artifacts[0].path).read_text(encoding="utf-8"))
-    if int(payload.get("broker_write_calls", 0)) != 0:
-        raise RuntimeError("BROKER_WRITE_COUNTER_NONZERO_BLOCKED")
-
-    by_symbol = payload.get("records") or {}
-    provider_results = payload.get("symbol_results") or {}
-    rows: list[dict] = []
+    results_by_symbol: dict[str, dict] = {}
+    needs_ibkr: list[str] = []
     for symbol in symbols:
-        provider = (provider_results.get(symbol) if isinstance(provider_results, dict) else None) or {}
-        records = (by_symbol.get(symbol) if isinstance(by_symbol, dict) else None) or []
-        if str(provider.get("status")) != "OK":
-            rows.append(
-                {
-                    "symbol": symbol,
-                    "status": "BLOCKED",
-                    "blockers": ["IBKR_HISTORICAL_READ_FAILED"],
-                    "provider": provider,
-                    "execution_authority": "NONE",
-                    "broker_write_calls": 0,
-                    "order_calls": 0,
-                }
-            )
-            continue
-        try:
-            rows.append(
-                bridge_symbol_v227(ROOT, symbol, records, decision_time=decision_time)
-            )
-        except Exception as exc:
-            rows.append(
-                {
-                    "symbol": symbol,
-                    "status": "BLOCKED",
-                    "blockers": [f"{type(exc).__name__}:{exc}"],
-                    "execution_authority": "NONE",
-                    "broker_write_calls": 0,
-                    "order_calls": 0,
-                }
-            )
+        state = canonical_freshness_v227(
+            ROOT,
+            symbol,
+            decision_time=decision_time,
+        )
+        if state["status"] == "NEEDS_IBKR_TAIL":
+            needs_ibkr.append(symbol)
+        else:
+            results_by_symbol[symbol] = state
 
+    market_data_read_calls = 0
+    integration_state = "SKIPPED"
+    integration_error = None
+
+    if needs_ibkr:
+        registry = IntegrationRegistry.load(
+            ROOT / "config/integrations.yaml",
+            project_root=ROOT,
+        )
+        runner = IntegrationRunner(registry)
+        response = runner.run(
+            args.integration,
+            "historical_bars_read_only",
+            {
+                "symbols": needs_ibkr,
+                "duration": "5 D",
+                "bar_size": "30 mins",
+                "what_to_show": "TRADES",
+                "use_rth": True,
+                "keep_up_to_date": False,
+            },
+            timeout_seconds=180,
+        )
+        integration_state = str(
+            getattr(
+                getattr(response, "state", None),
+                "value",
+                getattr(response, "state", "UNKNOWN"),
+            )
+        )
+        integration_error = response.error
+        (OUTPUT / "integration_response.json").write_text(
+            json.dumps(
+                response.to_dict(),
+                indent=2,
+                sort_keys=True,
+                default=str,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        if not response.ok or not response.artifacts:
+            for symbol in needs_ibkr:
+                results_by_symbol[symbol] = _blocked_from_integration(
+                    symbol,
+                    "IBKR_INTEGRATION_FAILED",
+                    provider={
+                        "state": integration_state,
+                        "error": integration_error,
+                    },
+                )
+        else:
+            payload = json.loads(
+                Path(response.artifacts[0].path).read_text(encoding="utf-8")
+            )
+            if int(payload.get("broker_write_calls", 0)) != 0:
+                raise RuntimeError("BROKER_WRITE_COUNTER_NONZERO_BLOCKED")
+
+            market_data_read_calls = int(
+                payload.get("historical_data_calls", 0)
+            )
+            by_symbol = payload.get("records") or {}
+            provider_results = payload.get("symbol_results") or {}
+
+            for symbol in needs_ibkr:
+                provider = (
+                    provider_results.get(symbol)
+                    if isinstance(provider_results, dict)
+                    else None
+                ) or {}
+                records = (
+                    by_symbol.get(symbol)
+                    if isinstance(by_symbol, dict)
+                    else None
+                ) or []
+
+                if str(provider.get("status")) != "OK":
+                    results_by_symbol[symbol] = _blocked_from_integration(
+                        symbol,
+                        "IBKR_HISTORICAL_READ_FAILED",
+                        provider=provider,
+                    )
+                    continue
+
+                try:
+                    results_by_symbol[symbol] = bridge_symbol_v227(
+                        ROOT,
+                        symbol,
+                        records,
+                        decision_time=decision_time,
+                    )
+                except Exception as exc:
+                    results_by_symbol[symbol] = _blocked_from_integration(
+                        symbol,
+                        f"{type(exc).__name__}:{exc}",
+                        provider=provider,
+                    )
+    else:
+        (OUTPUT / "integration_response.json").write_text(
+            json.dumps(
+                {
+                    "schema": "current_session_market_bridge_v2_27_2_noop",
+                    "state": "SKIPPED",
+                    "reason": "ALL_CANONICAL_SYMBOLS_ALREADY_FRESH",
+                    "symbols": symbols,
+                    "historical_data_calls": 0,
+                    "broker_write_calls": 0,
+                    "order_calls": 0,
+                    "execution_authority": "NONE",
+                },
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+    rows = [results_by_symbol[symbol] for symbol in symbols]
     fresh = [row for row in rows if bool(row.get("operationally_fresh"))]
     blocked = [row for row in rows if not bool(row.get("operationally_fresh"))]
     audit = {
-        "schema": "current_session_market_bridge_v2_27",
+        "schema": "current_session_market_bridge_v2_27_2",
         "decision_time": decision_time.isoformat(),
         "symbols": symbols,
         "symbol_count": len(symbols),
+        "already_fresh_count": sum(
+            row.get("status") == "ALREADY_FRESH" for row in rows
+        ),
+        "ibkr_tail_required_count": len(needs_ibkr),
         "fresh_count": len(fresh),
         "blocked_count": len(blocked),
         "all_fresh": len(fresh) == len(symbols),
-        "market_data_read_calls": int(payload.get("historical_data_calls", 0)),
+        "market_data_read_calls": market_data_read_calls,
+        "integration_state": integration_state,
+        "integration_error": integration_error,
         "broker_write_calls": 0,
         "order_calls": 0,
         "execution_authority": "NONE",
@@ -140,17 +237,40 @@ def main() -> int:
     write_bridge_audit_v227(OUTPUT / "audit.json", audit)
 
     print(
-        "CURRENT_SESSION_MARKET_BRIDGE_V2_27",
-        "SYMBOLS", len(symbols),
-        "FRESH", len(fresh),
-        "BLOCKED", len(blocked),
-        "ALL_FRESH", audit["all_fresh"],
+        "CURRENT_SESSION_MARKET_BRIDGE_V2_27_2",
+        "SYMBOLS",
+        len(symbols),
+        "ALREADY_FRESH",
+        audit["already_fresh_count"],
+        "NEEDS_IBKR",
+        audit["ibkr_tail_required_count"],
+        "FRESH",
+        len(fresh),
+        "BLOCKED",
+        len(blocked),
+        "ALL_FRESH",
+        audit["all_fresh"],
     )
     for row in rows:
+        provider_errors = (row.get("provider") or {}).get("errors") or []
+        error_summary = "|".join(
+            f"{item.get('code')}:{item.get('message')}"
+            for item in provider_errors
+            if isinstance(item, dict)
+        )
         print(
-            "BRIDGE", row["symbol"], row["status"],
-            "LATEST", row.get("latest_after_bridge", row.get("historical_last")),
-            "BLOCKERS", "|".join(row.get("blockers") or []),
+            "BRIDGE",
+            row["symbol"],
+            row["status"],
+            "LATEST",
+            row.get(
+                "latest_after_bridge",
+                row.get("historical_last"),
+            ),
+            "BLOCKERS",
+            "|".join(row.get("blockers") or []),
+            "IBKR_ERRORS",
+            error_summary,
         )
     print("MARKET_DATA_READ_CALLS", audit["market_data_read_calls"])
     print("BROKER_CALLS 0")

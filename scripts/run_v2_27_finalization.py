@@ -31,6 +31,7 @@ def main() -> int:
                 "tests/test_eodhd_hydration_freshness_v2_26_1.py",
                 "tests/test_provider_federation_v2_27.py",
                 "tests/test_current_session_market_bridge_v2_27.py",
+                "tests/test_current_session_bridge_short_circuit_v2_27_2.py",
                 "tests/test_start_preflight_partial_freshness_v2_27.py",
                 "tests/test_start_preflight_v2_26.py",
                 "tests/test_dynamic_shadow_target_book_v2_26.py",
@@ -52,6 +53,7 @@ def main() -> int:
     print("V2_27_FINALIZATION RESEARCH_SHADOW_BRIDGE_READY")
     print("EODHD_HISTORICAL_BACKFILL True")
     print("IBKR_CURRENT_SESSION_READ_ONLY True")
+    print("IBKR_ONLY_WHEN_TAIL_REQUIRED True")
     print("SOURCE_FABRIC_EXTERNAL_PROVIDERS True")
     print("STOCKS_REFERENCE_FULL_DATA_FEDERATION True")
     print("OPENEXCHANGERATES_PRIMARY_FX True")

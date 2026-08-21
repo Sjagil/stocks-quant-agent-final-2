@@ -220,6 +220,89 @@ def reconcile_overlap_v227(
     }
 
 
+
+def canonical_freshness_v227(
+    project_root: str | Path,
+    symbol: str,
+    *,
+    decision_time: datetime | pd.Timestamp,
+) -> dict[str, Any]:
+    root = Path(project_root).resolve()
+    symbol = str(symbol).strip().upper()
+    target = root / "data/canonical/provider_fabric" / f"{symbol}_1h.parquet"
+    expected_latest = expected_latest_closed_nyse_rth_1h_start(decision_time)
+
+    if not target.is_file():
+        return {
+            "symbol": symbol,
+            "status": "BLOCKED",
+            "operationally_fresh": False,
+            "blockers": ["HISTORICAL_CANONICAL_MISSING"],
+            "expected_latest": expected_latest.isoformat(),
+            "execution_authority": AUTHORITY_NONE,
+            "broker_write_calls": 0,
+            "order_calls": 0,
+        }
+
+    historical, _ = read_canonical_parquet(
+        target,
+        verify_hash=False,
+        verify_metadata=False,
+    )
+    historical = canonicalize_ohlcv(historical)
+    if historical.empty:
+        return {
+            "symbol": symbol,
+            "status": "BLOCKED",
+            "operationally_fresh": False,
+            "blockers": ["HISTORICAL_CANONICAL_EMPTY"],
+            "expected_latest": expected_latest.isoformat(),
+            "execution_authority": AUTHORITY_NONE,
+            "broker_write_calls": 0,
+            "order_calls": 0,
+        }
+
+    historical_last = historical.index.max()
+    if historical_last > expected_latest:
+        return {
+            "symbol": symbol,
+            "status": "BLOCKED",
+            "operationally_fresh": False,
+            "blockers": ["HISTORICAL_DATA_FROM_FUTURE_SESSION"],
+            "historical_last": historical_last.isoformat(),
+            "expected_latest": expected_latest.isoformat(),
+            "execution_authority": AUTHORITY_NONE,
+            "broker_write_calls": 0,
+            "order_calls": 0,
+        }
+
+    if historical_last == expected_latest:
+        return {
+            "symbol": symbol,
+            "status": "ALREADY_FRESH",
+            "operationally_fresh": True,
+            "historical_last": historical_last.isoformat(),
+            "expected_latest": expected_latest.isoformat(),
+            "appended_rows": 0,
+            "ibkr_tail_required": False,
+            "execution_authority": AUTHORITY_NONE,
+            "broker_write_calls": 0,
+            "order_calls": 0,
+        }
+
+    return {
+        "symbol": symbol,
+        "status": "NEEDS_IBKR_TAIL",
+        "operationally_fresh": False,
+        "historical_last": historical_last.isoformat(),
+        "expected_latest": expected_latest.isoformat(),
+        "ibkr_tail_required": True,
+        "execution_authority": AUTHORITY_NONE,
+        "broker_write_calls": 0,
+        "order_calls": 0,
+    }
+
+
 def bridge_symbol_v227(
     project_root: str | Path,
     symbol: str,
@@ -231,50 +314,24 @@ def bridge_symbol_v227(
 ) -> dict[str, Any]:
     root = Path(project_root).resolve()
     symbol = str(symbol).strip().upper()
-    target = root / "data/canonical/provider_fabric" / f"{symbol}_1h.parquet"
-    if not target.is_file():
-        return {
-            "symbol": symbol,
-            "status": "BLOCKED",
-            "blockers": ["HISTORICAL_CANONICAL_MISSING"],
-            "execution_authority": AUTHORITY_NONE,
-            "broker_write_calls": 0,
-            "order_calls": 0,
-        }
+    freshness = canonical_freshness_v227(
+        root,
+        symbol,
+        decision_time=decision_time,
+    )
+    if freshness["status"] != "NEEDS_IBKR_TAIL":
+        return freshness
 
+    target = root / "data/canonical/provider_fabric" / f"{symbol}_1h.parquet"
     historical, historical_meta = read_canonical_parquet(
         target, verify_hash=False, verify_metadata=False
-    )
-    ibkr_hourly, aggregation_audit = aggregate_ibkr_30m_to_nyse_1h_v227(
-        records, decision_time=decision_time
     )
     expected_latest = expected_latest_closed_nyse_rth_1h_start(decision_time)
     historical_last = historical.index.max()
 
-    if historical_last > expected_latest:
-        return {
-            "symbol": symbol,
-            "status": "BLOCKED",
-            "blockers": ["HISTORICAL_DATA_FROM_FUTURE_SESSION"],
-            "historical_last": historical_last.isoformat(),
-            "expected_latest": expected_latest.isoformat(),
-            "execution_authority": AUTHORITY_NONE,
-            "broker_write_calls": 0,
-            "order_calls": 0,
-        }
-    if historical_last == expected_latest:
-        return {
-            "symbol": symbol,
-            "status": "ALREADY_FRESH",
-            "operationally_fresh": True,
-            "historical_last": historical_last.isoformat(),
-            "expected_latest": expected_latest.isoformat(),
-            "appended_rows": 0,
-            "aggregation": aggregation_audit,
-            "execution_authority": AUTHORITY_NONE,
-            "broker_write_calls": 0,
-            "order_calls": 0,
-        }
+    ibkr_hourly, aggregation_audit = aggregate_ibkr_30m_to_nyse_1h_v227(
+        records, decision_time=decision_time
+    )
 
     overlap = reconcile_overlap_v227(
         historical,
