@@ -1,0 +1,43 @@
+{
+  "schema": "quant_math_v2_28",
+  "authority": "RESEARCH_SHADOW_ONLY",
+  "execution_authority": "NONE",
+  "annualization": {
+    "daily": 252,
+    "hourly_rth_reference": 1638
+  },
+  "covariance": {
+    "primary": "ledoit_wolf",
+    "challenger": "oas",
+    "ewma_decay_research_start": 0.94
+  },
+  "tail_risk": {
+    "alpha": 0.95
+  },
+  "portfolio": {
+    "max_total_weight_research_default": 0.6,
+    "max_position_weight_research_default": 0.3,
+    "primary_challenger": "MEAN_CVAR",
+    "other_challengers": [
+      "MIN_VARIANCE",
+      "RISK_BUDGETING_ALPHA_TILT"
+    ],
+    "cash_is_valid_allocation": true,
+    "full_kelly_allowed": false,
+    "fractional_kelly_research_cap": 0.25
+  },
+  "forward_labels": {
+    "default_bar_horizons": [
+      4,
+      8,
+      16,
+      24,
+      40
+    ],
+    "same_bar_execution_assumed": false
+  },
+  "safety": {
+    "broker_submission_enabled": false,
+    "automatic_live_promotion": false
+  }
+}
