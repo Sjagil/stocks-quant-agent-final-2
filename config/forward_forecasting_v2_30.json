@@ -1,0 +1,41 @@
+{
+  "schema": "forward_forecasting_v2_30",
+  "authority": "RESEARCH_SHADOW_ONLY",
+  "execution_authority": "NONE",
+  "horizons_bars": [
+    4,
+    8,
+    16,
+    24,
+    40
+  ],
+  "quantiles": [
+    0.1,
+    0.5,
+    0.9
+  ],
+  "walkforward": {
+    "minimum_train_size": 500,
+    "test_size": 100,
+    "step_size": 100,
+    "purge_must_cover_label_horizon": true,
+    "random_shuffle": false
+  },
+  "model": {
+    "family": "hist_gradient_boosting",
+    "learning_rate": 0.05,
+    "max_iter": 200,
+    "max_leaf_nodes": 15,
+    "l2_regularization": 1.0
+  },
+  "capital_allocation": {
+    "legacy_alpha_confidence_times_0_08_is_authoritative": false,
+    "requires_oos_forecast": true,
+    "requires_cost_adjustment": true,
+    "requires_uncertainty": true
+  },
+  "safety": {
+    "broker_submission_enabled": false,
+    "automatic_live_promotion": false
+  }
+}
