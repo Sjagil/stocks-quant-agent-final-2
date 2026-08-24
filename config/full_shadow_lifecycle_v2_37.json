@@ -1,0 +1,40 @@
+{
+  "schema": "full_shadow_lifecycle_v2_37",
+  "authority": "RESEARCH_SHADOW_ONLY",
+  "base_branch": "feature/execution-cost-liquidity-v2-36",
+  "output_branch": "feature/full-shadow-lifecycle-v2-37",
+  "ledger": {
+    "backend": "SQLITE",
+    "append_only_events": true,
+    "wal": true,
+    "synchronous": "FULL",
+    "hash_chain": true,
+    "idempotent_event_ids": true
+  },
+  "lifecycle": {
+    "long_only": true,
+    "entry_requires_v236_executable_edge": true,
+    "risk_exits_bypass_positive_edge_gate": true,
+    "partial_fills": true,
+    "restart_safe_replay": true,
+    "reconciliation_fail_closed": true
+  },
+  "exit_policy": {
+    "default_stop_loss_pct": 0.03,
+    "default_take_profit_pct": 0.08,
+    "default_trailing_stop_pct": 0.04,
+    "default_max_holding_bars": 160
+  },
+  "feedback": {
+    "forecast_error": true,
+    "cost_prediction_error": true,
+    "mfe_mae": true,
+    "holding_period": true,
+    "exit_reason": true
+  },
+  "research_compliance_gate_applied": false,
+  "broker_submission_enabled": false,
+  "automatic_live_promotion": false,
+  "order_calls": 0,
+  "execution_authority": "NONE"
+}
