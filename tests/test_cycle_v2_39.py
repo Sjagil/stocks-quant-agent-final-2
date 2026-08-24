@@ -1,0 +1,8 @@
+import json,pandas as pd
+from stocks.research.continuous.research_cycle_v2_39 import run_research_cycle
+
+def test_one_command_cycle_works_with_existing_registry(tmp_path):
+ (tmp_path/'config').mkdir(); cfg={'runtime_root':'artifacts/research_runtime/continuous_quant_research_v2_39','database_name':'research.db','research_compliance_gate_applied':False,'automatic_live_promotion':False,'broker_submission_enabled':False,'execution_authority':'NONE','order_calls':0,'scheduler':{'discovery_refresh_hours':24,'candidate_revalidation_hours':24,'challenger_revalidation_hours':72,'champion_revalidation_hours':168,'watch_revalidation_hours':24,'degraded_revalidation_hours':12,'job_lease_seconds':30,'max_attempts':2,'retry_base_seconds':1},'health':{'stale_evidence_hours':999,'psi_watch':.1,'psi_quarantine':.25,'js_watch':.08,'js_quarantine':.2,'decay_watch':.35,'decay_quarantine':.7,'disagreement_watch':.45,'disagreement_quarantine':.75,'minimum_shadow_trades_for_promotion_review':30,'minimum_independent_evidence_sources':1,'minimum_posterior_net_edge_bps':0},'bayesian':{'prior_mean_bps':0,'prior_strength':20},'discovery':{'default_limit':10},'inbox':{'shadow_feedback_globs':[]}}
+ (tmp_path/'config/continuous_quant_research_v2_39.json').write_text(json.dumps(cfg))
+ p=tmp_path/'artifacts/research_runtime/research_candidate_registry'; p.mkdir(parents=True); pd.DataFrame([{'hypothesis_id':'h1','family':'x','promotion_stage':'VALIDATION_QUEUE','validation_status':'PENDING'}]).to_csv(p/'registry.csv',index=False)
+ out=run_research_cycle(tmp_path,run_discovery=False,max_jobs=10); assert out['candidate_sync']['candidate_count']==1; assert (tmp_path/'artifacts/research_runtime/continuous_quant_research_v2_39/status.json').is_file()
