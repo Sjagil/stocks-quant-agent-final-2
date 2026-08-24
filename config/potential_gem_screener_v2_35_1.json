@@ -1,0 +1,45 @@
+{
+  "schema": "potential_gem_screener_v2_35_1",
+  "authority": "RESEARCH_SHADOW_ONLY",
+  "base_branch": "feature/asset-exposure-engine-v2-35",
+  "output_branch": "feature/potential-gem-screener-v2-35-1",
+  "universe": "COMMON_STOCKS_ONLY",
+  "hard_filters": {
+    "min_market_cap": 150000000,
+    "min_price": 2.0,
+    "min_avg_dollar_volume_20d": 1500000,
+    "min_data_quality_score": 0.7,
+    "max_fundamentals_age_days": 180,
+    "max_spread_bps": 80,
+    "max_dilution_yoy": 0.25
+  },
+  "component_weights": {
+    "quality": 0.2,
+    "growth": 0.18,
+    "revisions": 0.15,
+    "value": 0.15,
+    "momentum": 0.12,
+    "forecast": 0.12,
+    "catalyst": 0.08
+  },
+  "ranking": "SECTOR_RELATIVE_WEIGHTED_GEOMETRIC",
+  "tiers": {
+    "GEM_A": 75,
+    "GEM_B": 65,
+    "WATCH": 55
+  },
+  "diversity": {
+    "max_per_sector": 3,
+    "max_per_industry": 2
+  },
+  "anti_hype": {
+    "hard_pump_return": 0.35,
+    "hard_pump_volume_ratio": 5.0,
+    "min_news_source_diversity": 0.3
+  },
+  "research_compliance_gate_applied": false,
+  "broker_submission_enabled": false,
+  "automatic_live_promotion": false,
+  "order_calls": 0,
+  "execution_authority": "NONE"
+}
