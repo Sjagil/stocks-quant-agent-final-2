@@ -5,6 +5,7 @@ import math
 
 from .evidence_taxonomy_v2_39_2 import (
     CALIBRATION, COST_ROBUSTNESS, OOS_VALIDATION, evidence_class,
+    promotion_grade_record,
 )
 
 
@@ -54,6 +55,8 @@ def _metric_quality(records: list[dict]) -> float:
 
 def _positive(record: dict) -> bool:
     m = record.get("metrics", {})
+    if not promotion_grade_record(record):
+        return False
     for key in (
         "net_edge_bps", "mean_net_edge_bps", "median_test_expectancy_bps", "expectancy_bps",
         "realized_net_return_bps", "median_stress_test_expectancy_bps",
@@ -98,16 +101,24 @@ def quality_score_v2392(
 
     min_oos = max(1, int(policy.get("minimum_oos_observations", 60)))
     oos_records = _records(records, OOS_VALIDATION)
-    # Conservative: correlated rows from the same upstream artifact are not summed.
+    qualified_oos_records = [r for r in oos_records if promotion_grade_record(r)]
+    # Keep all observations visible diagnostically, but promotion quality comes
+    # only from explicitly qualified evidence.
     oos_observations = max((_sample_count(r) for r in oos_records), default=0)
     oos_coverage = min(1.0, oos_observations / min_oos)
-    oos_positive = any(_positive(r) for r in oos_records)
-    oos_metric = _metric_quality(oos_records)
-    oos_score = oos_coverage * ((0.60 if oos_positive else 0.0) + 0.40 * oos_metric)
+    oos_positive = any(_positive(r) for r in qualified_oos_records)
+    oos_metric = _metric_quality(qualified_oos_records)
+    oos_score = (
+        oos_coverage * ((0.60 if oos_positive else 0.0) + 0.40 * oos_metric)
+        if qualified_oos_records else 0.0
+    )
     oos_score = max(0.0, min(1.0, oos_score))
 
     min_cost_multiplier = max(1e-9, float(policy.get("minimum_cost_stress_multiplier", 2.0)))
-    cost_records = _records(records, COST_ROBUSTNESS)
+    cost_records = [
+        r for r in _records(records, COST_ROBUSTNESS)
+        if promotion_grade_record(r)
+    ]
     positive_multipliers: list[float] = []
     for r in cost_records:
         if not _positive(r):
@@ -127,7 +138,10 @@ def quality_score_v2392(
         posterior_strength = max(0.0, min(1.0, float(posterior_net_edge_bps) / 20.0))
     shadow_score = 0.60 * shadow_coverage + 0.40 * posterior_strength
 
-    calibration_records = _records(records, CALIBRATION)
+    calibration_records = [
+        r for r in _records(records, CALIBRATION)
+        if promotion_grade_record(r)
+    ]
     calibration = _metric_quality(calibration_records)
 
     class_target = max(1, int(policy.get("minimum_independent_evidence_classes", 2)))

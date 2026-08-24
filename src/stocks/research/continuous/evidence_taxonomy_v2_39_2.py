@@ -71,6 +71,35 @@ def evidence_class(evidence_type: str) -> str:
     return OTHER
 
 
+
+def promotion_grade_record(record: dict) -> bool:
+    # Backward compatible: legacy evidence without explicit qualification
+    # remains eligible; explicit failed/insufficient evidence does not.
+    metrics = record.get("metrics", {}) or {}
+
+    if "passed" in metrics:
+        value = metrics.get("passed")
+        if isinstance(value, bool):
+            passed = value
+        else:
+            passed = str(value).strip().lower() in {
+                "1", "true", "yes", "y", "pass", "passed", "validated", "accept",
+            }
+        if not passed:
+            return False
+
+    status = str(metrics.get("status") or "").strip().upper()
+    if (
+        status in {
+            "INSUFFICIENT", "BLOCKED", "FAILED", "FAIL",
+            "REJECT", "REJECTED", "NOT_EVALUABLE",
+        }
+        or status.startswith("NOT_EVALUABLE_")
+    ):
+        return False
+
+    return True
+
 def source_group(record: dict) -> str:
     source = str(record.get("source") or "").strip().lower()
     for marker, group in (
@@ -130,7 +159,8 @@ def evidence_breadth_v2392(
         group = source_group(record)
         classes.add(cls)
         sources.add(group)
-        if cls in PROMOTION_EVIDENCE_CLASSES:
+        promotion_grade = promotion_grade_record(record)
+        if cls in PROMOTION_EVIDENCE_CLASSES and promotion_grade:
             promotion_classes.add(cls)
             promotion_sources.add(group)
 
@@ -138,12 +168,13 @@ def evidence_breadth_v2392(
         if dt is not None:
             if latest_outcome is None or dt > latest_outcome:
                 latest_outcome = dt
-            if (now - dt).total_seconds() <= float(fresh_hours) * 3600:
+            is_fresh = (now - dt).total_seconds() <= float(fresh_hours) * 3600
+            if promotion_grade and is_fresh:
                 fresh_outcome.add(cls)
-            if cls in FRESH_DECISION_CLASSES:
+            if promotion_grade and cls in FRESH_DECISION_CLASSES:
                 if latest_decision is None or dt > latest_decision:
                     latest_decision = dt
-                if (now - dt).total_seconds() <= float(fresh_hours) * 3600:
+                if is_fresh:
                     fresh_decision.add(cls)
 
     return EvidenceBreadthV2392(
@@ -163,5 +194,5 @@ __all__ = [
     "SHADOW_OUTCOME", "CALIBRATION", "CROSS_ENGINE", "GENERALIZATION", "DRIFT_MONITOR",
     "OTHER", "INDEPENDENT_OUTCOME_CLASSES", "PROMOTION_EVIDENCE_CLASSES",
     "FRESH_DECISION_CLASSES", "EvidenceBreadthV2392", "evidence_class", "source_group",
-    "evidence_breadth_v2392",
+    "promotion_grade_record", "evidence_breadth_v2392",
 ]

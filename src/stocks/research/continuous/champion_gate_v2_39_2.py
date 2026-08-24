@@ -3,7 +3,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 import math
 
-from .evidence_taxonomy_v2_39_2 import COST_ROBUSTNESS, OOS_VALIDATION, evidence_class
+from .evidence_taxonomy_v2_39_2 import (
+    COST_ROBUSTNESS, OOS_VALIDATION, evidence_class, promotion_grade_record,
+)
 
 
 def _num(v):
@@ -31,6 +33,8 @@ def _sample_count(record: dict) -> int:
 
 def _positive(record: dict) -> bool:
     m = record.get("metrics", {})
+    if not promotion_grade_record(record):
+        return False
     for key in (
         "net_edge_bps", "mean_net_edge_bps", "median_test_expectancy_bps", "expectancy_bps",
         "realized_net_return_bps", "median_stress_test_expectancy_bps",
@@ -132,10 +136,15 @@ def evaluate_champion_gate_v2392(
         missing.append("NEED_FRESH_DECISION_EVIDENCE")
 
     oos_records = [r for r in records if evidence_class(r.get("evidence_type", "")) == OOS_VALIDATION]
-    # Conservative maximum avoids double-counting duplicated/correlated artifact rows.
+    qualified_oos_records = [r for r in oos_records if promotion_grade_record(r)]
+    # Preserve the raw diagnostic count while requiring a qualified record for
+    # the actual champion-review performance gate.
     oos_observations = max((_sample_count(r) for r in oos_records), default=0)
     min_oos = int(policy.get("minimum_oos_observations", 60))
-    oos_ok = oos_observations >= min_oos and any(_positive(r) for r in oos_records)
+    oos_ok = (
+        oos_observations >= min_oos
+        and any(_positive(r) for r in qualified_oos_records)
+    )
     if oos_ok:
         positive.append("OOS_EVIDENCE_SUFFICIENT")
 
@@ -152,7 +161,11 @@ def evaluate_champion_gate_v2392(
     if not performance_ok:
         missing.append("NEED_POSITIVE_OOS_OR_SHADOW_EVIDENCE")
 
-    cost_records = [r for r in records if evidence_class(r.get("evidence_type", "")) == COST_ROBUSTNESS]
+    cost_records = [
+        r for r in records
+        if evidence_class(r.get("evidence_type", "")) == COST_ROBUSTNESS
+        and promotion_grade_record(r)
+    ]
     min_multiplier = float(policy.get("minimum_cost_stress_multiplier", 2.0))
     positive_multipliers: list[float] = []
     for r in cost_records:
