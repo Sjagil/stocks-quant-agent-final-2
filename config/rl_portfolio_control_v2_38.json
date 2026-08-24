@@ -1,0 +1,70 @@
+{
+  "schema": "rl_portfolio_control_v2_38",
+  "authority": "RESEARCH_SHADOW_ONLY",
+  "base_branch": "feature/full-shadow-lifecycle-v2-37",
+  "output_branch": "feature/rl-marl-mappo-portfolio-control-v2-38",
+  "algorithms": {
+    "primary": "PPO",
+    "challengers": [
+      "SAC",
+      "MAPPO"
+    ]
+  },
+  "action": {
+    "long_only": true,
+    "leverage": false,
+    "max_total_exposure": 0.75,
+    "max_strategy_weight": 0.25,
+    "max_family_weight": 0.35,
+    "max_cluster_weight": 0.35,
+    "max_one_way_turnover": 0.3,
+    "max_portfolio_heat": 0.04,
+    "minimum_cash": 0.1,
+    "v233_acceptance_required": true
+  },
+  "reward": {
+    "log_wealth_weight": 1.0,
+    "turnover_penalty": 0.05,
+    "action_jerk_penalty": 0.025,
+    "drawdown_increment_penalty": 1.0,
+    "tail_risk_penalty": 0.2,
+    "concentration_penalty": 0.05,
+    "cost_penalty": 0.0,
+    "alpha_alignment_bonus": 0.01,
+    "reward_clip": 5.0
+  },
+  "training": {
+    "random_shuffle": false,
+    "purged_chronological_split": true,
+    "seed": 38,
+    "ppo": {
+      "gamma": 0.995,
+      "gae_lambda": 0.95,
+      "clip_range": 0.1,
+      "target_kl": 0.02
+    },
+    "sac": {
+      "gamma": 0.995,
+      "tau": 0.005
+    },
+    "mappo": {
+      "centralized_critic": true,
+      "shared_actor": true,
+      "global_reward_weight": 0.7,
+      "local_reward_weight": 0.2,
+      "difference_reward_weight": 0.1
+    }
+  },
+  "promotion": {
+    "challenger_only": true,
+    "requires_oos_after_costs": true,
+    "requires_shadow_lifecycle": true,
+    "requires_deterministic_baseline": true,
+    "automatic_live_promotion": false
+  },
+  "research_compliance_gate_applied": false,
+  "broker_submission_enabled": false,
+  "order_calls": 0,
+  "execution_authority": "NONE",
+  "automatic_live_promotion": false
+}
