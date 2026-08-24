@@ -1,0 +1,4 @@
+from stocks.research.continuous.champion_gate_v2_39_1 import evaluate_champion_gate
+from stocks.research.continuous.evidence_taxonomy_v2_39_1 import evidence_breadth
+def test_gate_missing_reasons_are_auditable():
+ reg={'validation_status':'VALIDATED','cross_engine_validated':True,'dynamic_universe_generalized':True};b=evidence_breadth([]);g=evaluate_champion_gate(latest_registry=reg,records=[],breadth=b,shadow_trades=0,posterior_net_edge_bps=None,quality_score=.35,policy={'minimum_independent_evidence_classes':2,'minimum_independent_evidence_sources':2,'minimum_oos_observations':60,'minimum_shadow_trades_for_promotion_review':30,'minimum_cost_stress_multiplier':2,'require_cost_robustness_for_champion_review':True,'require_fresh_outcome_evidence':True,'minimum_quality_score_for_champion_review':.72},severe_reasons=set());assert not g.passed;assert 'UPSTREAM_VALIDATION_PASS' in g.positive_reasons;assert any(x.startswith('NEED_') for x in g.missing_requirements)
