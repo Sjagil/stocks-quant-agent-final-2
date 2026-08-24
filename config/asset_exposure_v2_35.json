@@ -1,0 +1,39 @@
+{
+  "schema": "asset_exposure_engine_v2_35",
+  "authority": "RESEARCH_SHADOW_ONLY",
+  "base_branch": "feature/portfolio-intelligence-v2-34",
+  "output_branch": "feature/asset-exposure-engine-v2-35",
+  "asset_kinds": [
+    "STOCK",
+    "ETF",
+    "COMMODITY",
+    "COMMODITY_ETF"
+  ],
+  "pit_etf_holdings": true,
+  "lookthrough": {
+    "enabled": true,
+    "max_unknown_weight": 0.15,
+    "max_pairwise_etf_overlap": 0.7
+  },
+  "constraints": {
+    "max_sector_weight": 0.35,
+    "max_industry_weight": 0.25,
+    "max_country_weight": 0.8,
+    "max_currency_weight": 0.9,
+    "max_single_commodity_weight": 0.25,
+    "factor_abs_caps": {
+      "MARKET": 1.25,
+      "SIZE": 0.75,
+      "VALUE": 0.75,
+      "MOMENTUM": 0.75,
+      "QUALITY": 0.75,
+      "LOW_VOL": 0.75,
+      "GROWTH": 0.75
+    }
+  },
+  "research_compliance_gate_applied": false,
+  "broker_submission_enabled": false,
+  "automatic_live_promotion": false,
+  "order_calls": 0,
+  "execution_authority": "NONE"
+}
