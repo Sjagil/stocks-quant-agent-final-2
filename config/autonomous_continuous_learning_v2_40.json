@@ -1,0 +1,85 @@
+{
+  "schema": "autonomous_continuous_learning_v2_40",
+  "execution_authority": "NONE",
+  "broker_submission_enabled": false,
+  "automatic_live_promotion": false,
+  "automatic_champion_promotion": false,
+  "runtime": {
+    "cycle_seconds": 900,
+    "minimum_cycle_seconds": 60,
+    "strategy_refresh_every_cycles": 96,
+    "evidence_refresh_every_cycles": 4,
+    "research_reassess_every_cycles": 4,
+    "shadow_reconcile_every_cycles": 1,
+    "rl_retrain_check_every_cycles": 1,
+    "max_training_jobs_per_cycle": 2,
+    "training_timeout_seconds": 7200,
+    "continue_on_component_failure": true
+  },
+  "learning": {
+    "require_new_data": true,
+    "minimum_new_rows": 32,
+    "minimum_rows": 800,
+    "minimum_shadow_outcomes": 30,
+    "drift_retrain_threshold": 0.10,
+    "maximum_model_age_hours": 72,
+    "minimum_retrain_cooldown_hours": 6,
+    "purge_bars": 64,
+    "validation_fraction": 0.15,
+    "test_fraction": 0.15,
+    "warm_start": true,
+    "challenger_only": true
+  },
+  "agents": [
+    {
+      "agent_id": "ppo_spy_1h",
+      "algorithm": "PPO",
+      "symbol": "SPY",
+      "timeframe": "1h",
+      "data_path": "data/canonical/provider_fabric/SPY_1h.parquet",
+      "enabled": true,
+      "timesteps_per_update": 50000,
+      "seed": 41
+    },
+    {
+      "agent_id": "sac_spy_1h",
+      "algorithm": "SAC",
+      "symbol": "SPY",
+      "timeframe": "1h",
+      "data_path": "data/canonical/provider_fabric/SPY_1h.parquet",
+      "enabled": true,
+      "timesteps_per_update": 50000,
+      "seed": 43
+    }
+  ],
+  "mappo": {
+    "enabled": true,
+    "dataset_path": "artifacts/research_runtime/rl_portfolio_control_v2_38/mappo_training.npz",
+    "minimum_samples": 512,
+    "updates_per_cycle": 8,
+    "learning_rate": 0.0003,
+    "gamma": 0.995,
+    "gae_lambda": 0.95,
+    "clip_ratio": 0.2,
+    "value_coefficient": 0.5,
+    "entropy_coefficient": 0.01,
+    "max_grad_norm": 0.5,
+    "seed": 47
+  },
+  "strategy_runtime": {
+    "continuous_research_script": "scripts/run_continuous_quant_research_v2_39_2.py",
+    "evidence_production_script": "scripts/run_research_evidence_production_v2_39_3.py",
+    "parallel_research_script": "scripts/run_parallel_research.py",
+    "shadow_lifecycle_script": "scripts/run_shadow_lifecycle_v2_37.py",
+    "run_discovery": true,
+    "produce_due_max_entities": 5,
+    "research_max_jobs": 50
+  },
+  "paths": {
+    "runtime_root": "artifacts/research_runtime/autonomous_learning_v2_40",
+    "database": "artifacts/research_runtime/autonomous_learning_v2_40/learning.sqlite3",
+    "models": "artifacts/models/autonomous_learning_v2_40",
+    "reports": "artifacts/research_runtime/autonomous_learning_v2_40/reports",
+    "lock": "artifacts/research_runtime/autonomous_learning_v2_40/runtime.lock"
+  }
+}
