@@ -15,21 +15,40 @@ def _classes():
 
 def _atomic_model_save(model, final_base: Path) -> Path:
     final_base.parent.mkdir(parents=True, exist_ok=True)
-    tmp_base = final_base.with_name(final_base.name + ".tmp")
-    model.save(str(tmp_base))
-    tmp_zip = Path(str(tmp_base) + ".zip")
     final_zip = Path(str(final_base) + ".zip")
+    tmp_zip = final_zip.with_name(f"{final_zip.stem}.tmp.zip")
+    if tmp_zip.exists():
+        tmp_zip.unlink()
+
+    # Stable-Baselines3 normalizes model paths to .zip. Supplying an
+    # already-.zip temp path makes the actual output filename deterministic.
+    model.save(str(tmp_zip))
+    if not tmp_zip.is_file():
+        raise FileNotFoundError(
+            f"SB3 checkpoint save did not create expected temp file: {tmp_zip}"
+        )
+
     os.replace(tmp_zip, final_zip)
     return final_zip
 
-
 def _atomic_replay_save(model, final_path: Path) -> Path:
     final_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = final_path.with_name(final_path.name + ".tmp")
+    suffix = final_path.suffix or ".pkl"
+    stem = final_path.stem if final_path.suffix else final_path.name
+    tmp = final_path.with_name(f"{stem}.tmp{suffix}")
+    if tmp.exists():
+        tmp.unlink()
+
+    # save_replay_buffer uses suffix-aware path handling too. Keep the
+    # temporary filename on the final suffix so no hidden rename occurs.
     model.save_replay_buffer(str(tmp))
+    if not tmp.is_file():
+        raise FileNotFoundError(
+            f"SB3 replay-buffer save did not create expected temp file: {tmp}"
+        )
+
     os.replace(tmp, final_path)
     return final_path
-
 
 def sha256_file(path: str | Path) -> str:
     h = hashlib.sha256()

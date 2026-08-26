@@ -10,8 +10,10 @@ class FakeModel:
     @classmethod
     def load(cls, path, env=None): cls.loaded=True; return cls("MlpPolicy",env)
     def learn(self, total_timesteps, reset_num_timesteps=True): self.steps=total_timesteps; self.reset=reset_num_timesteps; return self
-    def save(self, path): Path(str(path)+".zip").write_bytes(b"model")
-    def save_replay_buffer(self, path): Path(path).write_bytes(b"replay")
+    def save(self, path):
+        p=Path(path); actual=p if p.suffix==".zip" else p.with_suffix(".zip"); actual.write_bytes(b"model")
+    def save_replay_buffer(self, path):
+        p=Path(path); actual=p if p.suffix==".pkl" else p.with_suffix(".pkl"); actual.write_bytes(b"replay")
     def load_replay_buffer(self, path): self.replay_loaded=True
 
 
