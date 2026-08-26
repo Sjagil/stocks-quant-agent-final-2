@@ -45,6 +45,118 @@ def _metadata_from_existing(symbol: str, timeframe: str, exchange: str, prior: d
     )
 
 
+def _session_close_marker_mask(
+    frame: pd.DataFrame,
+    *,
+    timezone_name: str,
+    close_time: str,
+) -> pd.Series:
+    if frame.empty:
+        return pd.Series(False, index=frame.index, dtype=bool)
+
+    required = {"open", "high", "low", "close", "volume"}
+    if not required.issubset(set(frame.columns)):
+        return pd.Series(False, index=frame.index, dtype=bool)
+
+    idx = pd.DatetimeIndex(pd.to_datetime(frame.index, utc=True))
+    local_clock = pd.Series(
+        idx.tz_convert(timezone_name).strftime("%H:%M"),
+        index=frame.index,
+    )
+    ohlc = frame[["open", "high", "low", "close"]].apply(
+        pd.to_numeric,
+        errors="coerce",
+    )
+    volume = pd.to_numeric(frame["volume"], errors="coerce")
+    all_ohlc_present = ohlc.notna().all(axis=1)
+    flat_ohlc = ohlc.nunique(axis=1, dropna=False).eq(1)
+
+    return (
+        local_clock.eq(str(close_time))
+        & volume.isna()
+        & all_ohlc_present
+        & flat_ohlc
+    ).astype(bool)
+
+
+def validate_provider_quality_audits_v241(
+    audits: list[dict[str, Any]],
+    *,
+    semantic_max_drop_fraction: float,
+    timezone_name: str,
+    close_time: str,
+) -> list[dict[str, Any]]:
+    enriched: list[dict[str, Any]] = []
+
+    for original in audits:
+        audit = dict(original)
+        raw_count = int(audit.get("rows_raw", 0) or 0)
+        dropped = int(audit.get("rows_dropped", 0) or 0)
+        marker_count = 0
+        non_marker_count = dropped
+
+        if dropped:
+            raw_path = audit.get("quarantine_path")
+            if not raw_path:
+                raise ValueError(
+                    f"{audit.get('ticker', 'UNKNOWN')}: dropped provider rows "
+                    "without quarantine_path"
+                )
+            quarantine_path = Path(raw_path)
+            if not quarantine_path.is_file():
+                raise ValueError(
+                    f"{audit.get('ticker', 'UNKNOWN')}: quarantine file missing: "
+                    f"{quarantine_path}"
+                )
+
+            bad_rows = pd.read_parquet(quarantine_path)
+            if len(bad_rows) != dropped:
+                raise ValueError(
+                    f"{audit.get('ticker', 'UNKNOWN')}: quarantine row count "
+                    f"{len(bad_rows)} != audit rows_dropped {dropped}"
+                )
+
+            marker_mask = _session_close_marker_mask(
+                bad_rows,
+                timezone_name=timezone_name,
+                close_time=close_time,
+            )
+            marker_count = int(marker_mask.sum())
+            non_marker_count = int((~marker_mask).sum())
+
+        eligible_raw = max(raw_count - marker_count, 0)
+        semantic_fraction = (
+            float(non_marker_count) / float(eligible_raw)
+            if eligible_raw
+            else (1.0 if non_marker_count else 0.0)
+        )
+
+        audit.update(
+            {
+                "session_close_markers_excluded": marker_count,
+                "semantic_non_marker_drops": non_marker_count,
+                "semantic_eligible_rows_raw": eligible_raw,
+                "semantic_non_marker_drop_fraction": semantic_fraction,
+                "semantic_max_drop_fraction": float(semantic_max_drop_fraction),
+                "session_close_marker_timezone": timezone_name,
+                "session_close_marker_time": close_time,
+            }
+        )
+
+        if semantic_fraction > float(semantic_max_drop_fraction):
+            raise ValueError(
+                f"{audit.get('ticker', 'UNKNOWN')}: semantic provider quality "
+                f"failure after session-marker classification: "
+                f"non_marker_drop_fraction={semantic_fraction:.6f} "
+                f"> max={float(semantic_max_drop_fraction):.6f}; "
+                f"session_close_markers_excluded={marker_count}; "
+                f"non_marker_drops={non_marker_count}"
+            )
+
+        enriched.append(audit)
+
+    return enriched
+
 def refresh_provider_fabric(root: str | Path, cfg: dict[str, Any]) -> dict[str, Any]:
     root = Path(root).resolve()
     data_cfg = cfg["data"]
@@ -96,8 +208,23 @@ def refresh_provider_fabric(root: str | Path, cfg: dict[str, Any]) -> dict[str, 
                 data_cfg["timeframe"],
                 pd.Timestamp(start),
                 pd.Timestamp(end),
-                max_drop_fraction=float(data_cfg.get("max_drop_fraction", 0.02)),
+                max_drop_fraction=float(data_cfg.get("provider_transport_max_drop_fraction", 0.20)),
                 quarantine_dir=out_root.parent / "quarantine" / "eodhd",
+            )
+            audits = validate_provider_quality_audits_v241(
+                audits,
+                semantic_max_drop_fraction=float(
+                    data_cfg.get("max_drop_fraction", 0.02)
+                ),
+                timezone_name=str(
+                    data_cfg.get(
+                        "session_close_marker_timezone",
+                        "America/New_York",
+                    )
+                ),
+                close_time=str(
+                    data_cfg.get("session_close_marker_time", "16:00")
+                ),
             )
             if period > pd.Timedelta(0):
                 new_frame = new_frame.loc[(new_frame.index + period) <= closed_cutoff]

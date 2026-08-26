@@ -33,7 +33,10 @@
     "bar_close_lag_seconds": 120,
     "market_calendar": "NYSE",
     "freshness_tolerance_minutes": 150,
-    "max_drop_fraction": 0.02
+    "max_drop_fraction": 0.02,
+    "provider_transport_max_drop_fraction": 0.2,
+    "session_close_marker_timezone": "America/New_York",
+    "session_close_marker_time": "16:00"
   },
   "broker": {
     "host_env": "IBKR_HOST",
