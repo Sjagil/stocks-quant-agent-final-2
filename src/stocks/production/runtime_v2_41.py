@@ -14,7 +14,7 @@ import pandas as pd
 
 from .authority_v2_41 import authority_status, configured_mode, engage_kill_switch, set_submission
 from .contracts_v2_41 import ExecutionMode
-from .data_refresh_v2_41 import refresh_provider_fabric
+from .data_refresh_v2_41_2 import refresh_provider_fabric
 from .ibkr_adapter_v2_41 import IBKRBrokerV241
 from .preflight_v2_41 import build_preflight
 from .proposal_adapter_v2_41 import eligible_buy_rows, position_state_map

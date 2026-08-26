@@ -36,7 +36,16 @@
     "max_drop_fraction": 0.02,
     "provider_transport_max_drop_fraction": 0.2,
     "session_close_marker_timezone": "America/New_York",
-    "session_close_marker_time": "16:00"
+    "session_close_marker_time": "16:00",
+    "production_current_session_provider": "IBKR",
+    "finalized_history_root": "data/canonical/production_history/eodhd",
+    "ibkr_history_duration": "5 D",
+    "ibkr_history_bar_size": "1 hour",
+    "ibkr_history_what_to_show": "TRADES",
+    "ibkr_history_use_rth": true,
+    "minimum_cross_provider_overlap_bars": 3,
+    "maximum_cross_provider_close_disagreement_bps": 50.0,
+    "require_all_symbols_fresh": true
   },
   "broker": {
     "host_env": "IBKR_HOST",

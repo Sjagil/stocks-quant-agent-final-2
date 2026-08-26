@@ -172,6 +172,59 @@ class IBKRBrokerV241:
             raise RuntimeError(f"unable to uniquely qualify stock contract {symbol}")
         return qualified[0]
 
+    def historical_bars(
+        self,
+        symbol: str,
+        *,
+        duration: str = "5 D",
+        bar_size: str = "1 hour",
+        what_to_show: str = "TRADES",
+        use_rth: bool = True,
+    ):
+        """Read recent historical bars without broker order authority.
+
+        formatDate=2 asks ib_async/IBKR for timezone-aware UTC datetimes.
+        This method never increments write_calls and never places/cancels orders.
+        """
+        import pandas as pd
+
+        contract = self.stock_contract(symbol)
+        try:
+            self.ib.reqMarketDataType(int(self.cfg["broker"].get("market_data_type", 1)))
+        except Exception:
+            pass
+        bars = self.ib.reqHistoricalData(
+            contract,
+            endDateTime="",
+            durationStr=str(duration),
+            barSizeSetting=str(bar_size),
+            whatToShow=str(what_to_show),
+            useRTH=bool(use_rth),
+            formatDate=2,
+            keepUpToDate=False,
+            timeout=float(self.cfg["runtime"].get("broker_snapshot_timeout_seconds", 8)),
+        )
+        if not bars:
+            raise RuntimeError(f"IBKR returned no historical bars for {symbol}")
+
+        rows = []
+        for bar in bars:
+            ts = pd.Timestamp(getattr(bar, "date", None))
+            if pd.isna(ts):
+                raise ValueError(f"IBKR historical bar has invalid timestamp for {symbol}")
+            ts = ts.tz_localize("UTC") if ts.tzinfo is None else ts.tz_convert("UTC")
+            rows.append({
+                "timestamp": ts,
+                "open": float(bar.open),
+                "high": float(bar.high),
+                "low": float(bar.low),
+                "close": float(bar.close),
+                "volume": float(bar.volume),
+            })
+        frame = pd.DataFrame(rows).set_index("timestamp").sort_index(kind="stable")
+        frame.index = pd.DatetimeIndex(frame.index, tz="UTC", name="timestamp")
+        return frame
+
     def quote(self, symbol: str) -> QuoteSnapshot:
         contract = self.stock_contract(symbol)
         try:

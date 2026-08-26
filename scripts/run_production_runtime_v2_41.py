@@ -24,7 +24,7 @@ from stocks.production.authority_v2_41 import (
     set_mode,
     set_submission,
 )
-from stocks.production.data_refresh_v2_41 import refresh_provider_fabric
+from stocks.production.data_refresh_v2_41_2 import refresh_provider_fabric
 from stocks.production.ibkr_adapter_v2_41 import IBKRBrokerV241
 from stocks.production.launchd_v2_41 import LABEL, install_launchagent_v241, launchagent_path_v241, uninstall_launchagent_v241
 from stocks.production.preflight_v2_41 import build_preflight
@@ -61,6 +61,10 @@ def preflight(cfg, store):
         buys = eligible_buy_rows(ROOT, cfg)
         relevant = {str(x.get("symbol", "")).upper() for x in buys if x.get("symbol")}
         relevant |= store.managed_symbols()
+        if not relevant:
+            # Manual preflight is a production-universe readiness check, not a
+            # no-op just because the current decision file has no buy candidate.
+            relevant = {str(s).upper() for s in cfg["data"].get("symbols", [])}
         report = build_preflight(root=ROOT, cfg=cfg, store=store, snapshot=snap, relevant_symbols=relevant)
         return snap, report
 
@@ -124,6 +128,9 @@ def main() -> int:
             "automatic_live_promotion_false": not cfg["authority"].get("automatic_live_promotion", False),
             "automatic_champion_promotion_false": not cfg["authority"].get("automatic_champion_promotion", False),
             "rl_direct_broker_control_false": not cfg["eligibility"].get("allow_rl_direct_broker_control", False),
+            "current_session_provider_ibkr": cfg["data"].get("production_current_session_provider") == "IBKR",
+            "finalized_history_isolated": bool(cfg["data"].get("finalized_history_root")),
+            "all_symbol_freshness_required": cfg["data"].get("require_all_symbols_fresh") is True,
         }
         try:
             import ib_async  # noqa: F401
