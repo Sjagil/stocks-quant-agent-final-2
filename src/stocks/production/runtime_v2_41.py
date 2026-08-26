@@ -1,0 +1,392 @@
+from __future__ import annotations
+
+import json
+import math
+import os
+import subprocess
+import sys
+import tempfile
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+import pandas as pd
+
+from .authority_v2_41 import authority_status, configured_mode, engage_kill_switch, set_submission
+from .contracts_v2_41 import ExecutionMode
+from .data_refresh_v2_41 import refresh_provider_fabric
+from .ibkr_adapter_v2_41 import IBKRBrokerV241
+from .preflight_v2_41 import build_preflight
+from .proposal_adapter_v2_41 import eligible_buy_rows, position_state_map
+from .reconciliation_v2_41 import ingest_broker_fills, reconcile
+from .risk_v2_41 import build_buy_intent, build_exit_intent
+from .state_store_v2_41 import ProductionStoreV241
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _atomic_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, name = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, indent=2, sort_keys=True, default=str)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(name, path)
+    finally:
+        try:
+            os.unlink(name)
+        except FileNotFoundError:
+            pass
+
+
+def _due(store: ProductionStoreV241, key: str, seconds: int, *, force: bool = False) -> bool:
+    if force:
+        return True
+    raw = store.get(key, None)
+    if not raw:
+        return True
+    try:
+        then = pd.Timestamp(raw)
+        if then.tzinfo is None:
+            then = then.tz_localize("UTC")
+        else:
+            then = then.tz_convert("UTC")
+        return (pd.Timestamp.now(tz="UTC") - then).total_seconds() >= int(seconds)
+    except Exception:
+        return True
+
+
+def _run_component(root: Path, args: list[str], label: str) -> dict[str, Any]:
+    proc = subprocess.run(
+        [str(root / ".venv/bin/python"), *args],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    return {
+        "component": label,
+        "returncode": int(proc.returncode),
+        "status": "SUCCEEDED" if proc.returncode == 0 else "FAILED",
+        "stdout_tail": proc.stdout[-6000:],
+        "stderr_tail": proc.stderr[-6000:],
+    }
+
+
+def _refresh_decisions(root: Path) -> list[dict[str, Any]]:
+    out = []
+    out.append(_run_component(root, ["scripts/run_forward_signal_engine.py"], "FORWARD_SIGNAL_ENGINE"))
+    if out[-1]["returncode"] != 0:
+        return out
+    out.append(_run_component(root, ["scripts/run_portfolio_decision_v2.py"], "PORTFOLIO_DECISION"))
+    return out
+
+
+def _managed_positions(store: ProductionStoreV241, broker_positions: dict[str, float]) -> dict[str, int]:
+    managed = store.managed_symbols()
+    return {
+        s: int(round(float(q)))
+        for s, q in broker_positions.items()
+        if s.upper() in managed and float(q) > 0 and abs(float(q) - round(float(q))) < 1e-8
+    }
+
+
+def _managed_gross_usd(broker: IBKRBrokerV241, positions: dict[str, int]) -> tuple[float, dict[str, Any]]:
+    gross = 0.0
+    detail = {}
+    for symbol, qty in sorted(positions.items()):
+        quote = broker.quote(symbol)
+        notional = quote.midpoint * int(qty)
+        gross += notional
+        detail[symbol] = {"quantity": qty, "midpoint": quote.midpoint, "notional_usd": notional}
+    return gross, detail
+
+
+def _submission_gate_names() -> set[str]:
+    return {
+        "MODE_SUBMISSION_ENABLED",
+        "LIVE_CANARY_ARM_AND_CAP_READY",
+        "RTH_OPEN",
+        "MODE_BROKER_ENVIRONMENT_MATCH",
+        "SUBMISSION_ENVIRONMENT_MATCH",
+        "DAILY_ORDER_CAP_AVAILABLE",
+    }
+
+
+def _planning_ready(preflight: dict[str, Any]) -> bool:
+    gates = preflight.get("gates", {})
+    ignored = _submission_gate_names()
+    return all(bool(v) for k, v in gates.items() if k not in ignored)
+
+
+def _what_if_rejected(result: dict[str, Any]) -> bool:
+    text = str(result.get("warning_text", "") or "").lower()
+    return any(token in text for token in ("reject", "insufficient", "not allowed", "not permitted"))
+
+
+def run_production_cycle_v241(
+    root: str | Path,
+    cfg: dict[str, Any],
+    *,
+    force_data_refresh: bool = False,
+    force_decision_refresh: bool = False,
+) -> dict[str, Any]:
+    root = Path(root).resolve()
+    store = ProductionStoreV241(root / cfg["runtime"]["database"])
+    cycle_id = store.start_cycle()
+    summary: dict[str, Any] = {
+        "schema": "production_cycle_v2_41",
+        "cycle_id": cycle_id,
+        "started_at": _now_iso(),
+        "mode": configured_mode(store, cfg).value,
+        "components": [],
+        "planned": [],
+        "submitted": [],
+        "cancelled": [],
+        "errors": [],
+        "broker_write_calls": 0,
+        "automatic_live_promotion": False,
+        "automatic_champion_promotion": False,
+        "rl_direct_broker_control": False,
+    }
+
+    try:
+        if _due(store, "last_data_refresh_at", int(cfg["runtime"]["data_refresh_seconds"]), force=force_data_refresh):
+            refresh = refresh_provider_fabric(root, cfg)
+            summary["data_refresh"] = refresh
+            if refresh.get("status") == "SUCCEEDED":
+                store.set("last_data_refresh_at", _now_iso())
+            else:
+                summary["errors"].append("DATA_REFRESH_NOT_FULLY_SUCCESSFUL")
+
+        if _due(store, "last_decision_refresh_at", int(cfg["runtime"]["decision_refresh_seconds"]), force=force_decision_refresh):
+            components = _refresh_decisions(root)
+            summary["components"].extend(components)
+            if components and all(x["returncode"] == 0 for x in components):
+                store.set("last_decision_refresh_at", _now_iso())
+            else:
+                summary["errors"].append("DECISION_REFRESH_FAILED")
+
+        with IBKRBrokerV241(cfg, readonly=True) as broker:
+            snapshot = broker.snapshot()
+            summary["broker_snapshot"] = snapshot.to_dict()
+            summary["fills_ingested"] = ingest_broker_fills(store, snapshot.fills)
+            buys = eligible_buy_rows(root, cfg)
+            states = position_state_map(root)
+            managed_positions = _managed_positions(store, snapshot.positions)
+            relevant_symbols = {str(x.get("symbol", "")).upper() for x in buys if x.get("symbol")}
+            relevant_symbols |= set(managed_positions)
+            preflight = build_preflight(
+                root=root,
+                cfg=cfg,
+                store=store,
+                snapshot=snapshot,
+                relevant_symbols=relevant_symbols,
+            )
+            preflight_dict = preflight.to_dict()
+            summary["preflight"] = preflight_dict
+            summary["eligible_buy_count"] = len(buys)
+            summary["managed_positions"] = managed_positions
+
+            if not preflight.gates.get("DAILY_DRAWDOWN_WITHIN_LIMIT", True):
+                engage_kill_switch(root, cfg, "DAILY_NET_LIQ_DRAWDOWN_LIMIT")
+                set_submission(store, enabled=False)
+                summary["kill_switch_engaged"] = "DAILY_NET_LIQ_DRAWDOWN_LIMIT"
+
+            planning_ok = _planning_ready(preflight_dict)
+            fx = None
+            managed_gross = 0.0
+            managed_detail = {}
+            if planning_ok:
+                fx = broker.fx_to_asset_currency(snapshot.base_currency, cfg["broker"].get("currency", "USD"))
+                managed_gross, managed_detail = _managed_gross_usd(broker, managed_positions)
+            summary["managed_gross_usd"] = managed_gross
+            summary["managed_exposure_detail"] = managed_detail
+
+            # Existing managed positions can only be exited from an explicit,
+            # repeated inactive state. Baseline/manual positions are never auto-sold.
+            exit_plans = []
+            if planning_ok:
+                for symbol, qty in sorted(managed_positions.items()):
+                    if symbol not in states:
+                        continue
+                    active = bool(states[symbol])
+                    count = store.inactive_count(symbol, active)
+                    if active or count < int(cfg["risk"].get("exit_confirm_cycles", 2)):
+                        continue
+                    quote = broker.quote(symbol)
+                    exit_plans.append(build_exit_intent(symbol, qty, quote, cfg))
+
+            buy_plan = None
+            buy_diag = None
+            if planning_ok and buys:
+                max_positions = int(cfg["risk"]["max_open_managed_positions"])
+                if len(managed_positions) < max_positions:
+                    for proposal in buys:
+                        symbol = str(proposal["symbol"]).upper()
+                        if float(snapshot.positions.get(symbol, 0.0)) > 0:
+                            continue
+                        quote = broker.quote(symbol)
+                        buy_plan, buy_diag = build_buy_intent(
+                            root=root,
+                            symbol=symbol,
+                            proposal=proposal,
+                            quote=quote,
+                            net_liquidation_base=snapshot.net_liquidation,
+                            available_funds_base=snapshot.available_funds,
+                            fx_base_to_usd=float(fx),
+                            cfg=cfg,
+                        )
+                        if buy_plan is None:
+                            summary["planned"].append({"symbol": symbol, "status": "BLOCKED", "diagnostics": buy_diag})
+                            continue
+                        net_liq_usd = snapshot.net_liquidation * float(fx)
+                        resulting_gross = managed_gross + float(buy_plan.quantity) * float(buy_plan.entry_limit or 0)
+                        gross_limit = net_liq_usd * float(cfg["risk"]["max_gross_managed_exposure_fraction"])
+                        if resulting_gross > gross_limit + 1e-9:
+                            summary["planned"].append({
+                                "symbol": symbol,
+                                "status": "BLOCKED",
+                                "blocker": "MANAGED_GROSS_EXPOSURE_LIMIT",
+                                "resulting_gross_usd": resulting_gross,
+                                "limit_usd": gross_limit,
+                            })
+                            buy_plan = None
+                            continue
+                        break
+
+            for intent in exit_plans:
+                summary["planned"].append({"status": "READY", "intent": intent.to_dict()})
+            if buy_plan is not None:
+                summary["planned"].append({"status": "READY", "intent": buy_plan.to_dict(), "diagnostics": buy_diag})
+
+        # No broker writes unless every mode-specific gate passed. This second
+        # connection happens only after read-only snapshot/reconciliation/planning.
+        mode = configured_mode(store, cfg)
+        if summary["errors"]:
+            summary["submission_status"] = "BLOCKED_RUNTIME_ERRORS"
+        elif not preflight.passed or mode == ExecutionMode.OBSERVE:
+            summary["submission_status"] = "BLOCKED_OR_OBSERVE"
+        else:
+            with IBKRBrokerV241(cfg, readonly=False) as broker:
+                live_snapshot = broker.snapshot()
+                ingest_broker_fills(store, live_snapshot.fills)
+                second_preflight = build_preflight(
+                    root=root,
+                    cfg=cfg,
+                    store=store,
+                    snapshot=live_snapshot,
+                    relevant_symbols=relevant_symbols,
+                )
+                summary["pre_submit_preflight"] = second_preflight.to_dict()
+                second_recon = reconcile(store, live_snapshot.positions, live_snapshot.open_orders)
+                summary["pre_submit_reconciliation"] = second_recon
+                if not second_preflight.passed:
+                    raise RuntimeError("PRE_SUBMIT_PREFLIGHT_FAILED")
+                if not second_recon["passed"]:
+                    raise RuntimeError("PRE_SUBMIT_RECONCILIATION_FAILED")
+                if live_snapshot.account != snapshot.account or live_snapshot.environment != snapshot.environment:
+                    raise RuntimeError("BROKER_ACCOUNT_OR_ENVIRONMENT_CHANGED")
+
+                # Exits first. They only affect positions created by this runtime.
+                for intent in exit_plans:
+                    if not store.claim_intent(intent.to_dict()):
+                        continue
+                    try:
+                        cancelled = broker.cancel_managed_orders_for_symbol(intent.symbol)
+                        summary["cancelled"].extend(cancelled)
+                        row = broker.submit_exit(
+                            symbol=intent.symbol,
+                            quantity=intent.quantity,
+                            limit_price=float(intent.entry_limit),
+                            order_ref=f"SQA:{intent.intent_id}",
+                        )
+                        store.record_order(
+                            broker_order_id=row["broker_order_id"],
+                            intent_id=intent.intent_id,
+                            role="EXIT",
+                            status=row["status"],
+                            order_ref=row["order_ref"],
+                            payload=row,
+                        )
+                        store.update_intent(intent.intent_id, "SUBMITTED")
+                        summary["submitted"].append(row)
+                    except Exception as exc:
+                        store.update_intent(intent.intent_id, "FAILED", {**intent.to_dict(), "error": f"{type(exc).__name__}:{exc}"})
+                        raise
+
+                # At most one new entry per cycle/day per configured policy.
+                if buy_plan is not None and store.orders_today(pd.Timestamp.now(tz="UTC").date().isoformat()) < int(cfg["risk"]["max_new_orders_per_day"]):
+                    # Rebuild from a fresh broker quote immediately before submission.
+                    proposal = next((p for p in buys if str(p.get("symbol", "")).upper() == buy_plan.symbol), None)
+                    quote = broker.quote(buy_plan.symbol)
+                    fx_now = broker.fx_to_asset_currency(live_snapshot.base_currency, cfg["broker"].get("currency", "USD"))
+                    current_plan, current_diag = build_buy_intent(
+                        root=root,
+                        symbol=buy_plan.symbol,
+                        proposal=proposal or {},
+                        quote=quote,
+                        net_liquidation_base=live_snapshot.net_liquidation,
+                        available_funds_base=live_snapshot.available_funds,
+                        fx_base_to_usd=fx_now,
+                        cfg=cfg,
+                    )
+                    if current_plan is None:
+                        summary["submission_status"] = "BUY_RECHECK_BLOCKED"
+                        summary["buy_recheck"] = current_diag
+                    elif store.claim_intent(current_plan.to_dict()):
+                        try:
+                            order_ref = f"SQA:{current_plan.intent_id}"
+                            what_if = broker.what_if_buy(
+                                current_plan.symbol,
+                                current_plan.quantity,
+                                float(current_plan.entry_limit),
+                                order_ref,
+                            )
+                            summary["what_if"] = what_if
+                            if _what_if_rejected(what_if):
+                                store.update_intent(current_plan.intent_id, "REJECTED", {**current_plan.to_dict(), "what_if": what_if})
+                                summary["submission_status"] = "WHAT_IF_REJECTED"
+                            else:
+                                rows = broker.submit_protected_buy(
+                                    symbol=current_plan.symbol,
+                                    quantity=current_plan.quantity,
+                                    entry_limit=float(current_plan.entry_limit),
+                                    stop_price=float(current_plan.stop_price),
+                                    order_ref=order_ref,
+                                )
+                                for row in rows:
+                                    store.record_order(
+                                        broker_order_id=row["broker_order_id"],
+                                        intent_id=current_plan.intent_id,
+                                        role=row["role"],
+                                        status=row["status"],
+                                        order_ref=row["order_ref"],
+                                        payload=row,
+                                    )
+                                store.update_intent(current_plan.intent_id, "SUBMITTED")
+                                summary["submitted"].extend(rows)
+                                summary["submission_status"] = "SUBMITTED"
+                        except Exception as exc:
+                            store.update_intent(current_plan.intent_id, "FAILED", {**current_plan.to_dict(), "error": f"{type(exc).__name__}:{exc}"})
+                            raise
+                    else:
+                        summary["submission_status"] = "IDEMPOTENT_DUPLICATE_INTENT"
+                summary["broker_write_calls"] = broker.write_calls
+
+        summary["finished_at"] = _now_iso()
+        summary["status"] = "SUCCEEDED" if not summary["errors"] else "DEGRADED"
+        store.finish_cycle(cycle_id, summary["status"], summary)
+    except Exception as exc:
+        summary["errors"].append(f"{type(exc).__name__}:{exc}")
+        summary["finished_at"] = _now_iso()
+        summary["status"] = "FAILED"
+        store.finish_cycle(cycle_id, "FAILED", summary)
+
+    _atomic_json(root / cfg["runtime"]["report_path"], summary)
+    return summary
