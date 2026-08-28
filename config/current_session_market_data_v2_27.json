@@ -1,0 +1,31 @@
+{
+  "schema": "current_session_market_data_v2_27",
+  "historical_source": "EODHD",
+  "current_session_source": "IBKR_TWS_API_READ_ONLY",
+  "ibkr": {
+    "duration": "5 D",
+    "source_bar_size": "30 mins",
+    "what_to_show": "TRADES",
+    "use_rth": true,
+    "keep_up_to_date": false,
+    "format_date": 2,
+    "max_symbols_per_cycle": 12,
+    "request_spacing_seconds": 0.25
+  },
+  "bridge": {
+    "target_bar_size": "1h",
+    "anchor": "NYSE_RTH_SESSION_OPEN",
+    "require_complete_tail": true,
+    "require_source_overlap": true,
+    "price_tolerance_bps": 75.0,
+    "volume_relative_tolerance": 0.6,
+    "forward_fill": false,
+    "publish_open_bar": false
+  },
+  "authority": {
+    "market_data_read_only": true,
+    "broker_submission_enabled": false,
+    "automatic_live_promotion": false,
+    "execution_authority": "NONE"
+  }
+}

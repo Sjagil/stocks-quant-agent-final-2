@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 from pathlib import Path
 from typing import Any
 
@@ -72,13 +74,9 @@ def aggregate_session_hourly(
         ),
     )
 
-    source_delta = pd.Timedelta(
-        minutes=15
-    )
+    source_delta = timedelta(minutes=15)
 
-    target_delta = pd.Timedelta(
-        hours=1
-    )
+    target_delta = timedelta(hours=1)
 
     output = []
 

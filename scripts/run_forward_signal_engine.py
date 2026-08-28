@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 from __future__ import annotations
 
@@ -48,8 +47,21 @@ def main() -> int:
         encoding="utf-8",
     )
 
+    version = (
+        "V2_8"
+        if str(
+            audit.get("schema", "")
+        ).endswith("v2_8")
+        else str(
+            audit.get(
+                "schema",
+                "UNKNOWN",
+            )
+        ).upper()
+    )
+
     print(
-        "FORWARD_SIGNAL_ENGINE_V2_7",
+        f"FORWARD_SIGNAL_ENGINE_{version}",
         "ROWS",
         audit["rows"],
         "NEW_ENTRY_READY",
@@ -63,17 +75,24 @@ def main() -> int:
     )
 
     if not frame.empty:
+        columns = [
+            "symbol",
+            "strategy",
+            "research_lane",
+            "forward_state",
+            "fresh_trigger_reason",
+            "signal_bar_time",
+            "bars_since_entry",
+            "applicability_score",
+            "new_entry_ready",
+            "position_management_candidate",
+        ]
         print(
             frame[
                 [
-                    "symbol",
-                    "strategy",
-                    "research_lane",
-                    "forward_state",
-                    "bars_since_entry",
-                    "applicability_score",
-                    "new_entry_ready",
-                    "position_management_candidate",
+                    column
+                    for column in columns
+                    if column in frame.columns
                 ]
             ]
             .head(60)
@@ -84,7 +103,6 @@ def main() -> int:
         "ARTIFACT_ROOT",
         output,
     )
-
     return 0
 
 

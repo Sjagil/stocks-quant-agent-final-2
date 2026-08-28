@@ -59,6 +59,26 @@ def _evaluate(
             {symbol: FeatureCache(frame)},
         )
 
+    if source == "strategy_generation_v2_22":
+        from stocks.research.strategy_generation_v2_22 import (
+            GeneratedStrategyHypothesis,
+            evaluate_generated_hypothesis,
+        )
+
+        hypothesis = GeneratedStrategyHypothesis(
+            hypothesis_id=str(row["hypothesis_id"]),
+            strategy=str(row["strategy"]),
+            family=str(row["family"]),
+            rationale=str(row.get("rationale") or ""),
+            params=params,
+            complexity=int(row.get("complexity") or len(params)),
+        )
+        return evaluate_generated_hypothesis(
+            hypothesis,
+            {symbol: frame},
+            {symbol: FeatureCache(frame)},
+        )
+
     specs = {spec.name: spec for spec in eligible_1h_specs()}
     strategy = str(row["strategy"])
     if strategy not in specs:
@@ -330,9 +350,9 @@ def build_candidate_strategy_matrix(
 
     audit = {
         "schema": "candidate_strategy_matrix_v1",
-        "hydrated_symbols": int(len(hydrated_symbols)),
-        "broadly_validated_strategies": int(len(strategy_rows)),
-        "matrix_rows": int(len(matrix)),
+        "hydrated_symbols": len(hydrated_symbols),
+        "broadly_validated_strategies": len(strategy_rows),
+        "matrix_rows": len(matrix),
         "positive_local_evidence_rows": int(
             matrix["local_evidence_positive"].sum()
         ) if not matrix.empty else 0,
@@ -342,7 +362,7 @@ def build_candidate_strategy_matrix(
         "recent_entry_rows": int(
             (matrix["setup_state"] == "RECENT_ENTRY").sum()
         ) if not matrix.empty else 0,
-        "opportunity_rows": int(len(opportunities)),
+        "opportunity_rows": len(opportunities),
         "strategy_parameters_retuned": False,
         "candidate_selection_used_for_generalization": False,
         "automatic_order_authority": False,

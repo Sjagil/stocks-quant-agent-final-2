@@ -1,0 +1,43 @@
+schema: agent_validation_v2_13
+execution_authority: NONE
+money_control: false
+broker_order_submission: false
+
+data:
+  timeframe: 1h
+  minimum_rows: 2500
+  purge_bars: 64
+  embargo_bars: 64
+  max_folds: 2
+
+training:
+  seeds: [11, 29, 47]
+  episode_length: 256
+  smoke_timesteps:
+    DQN: 5000
+    SAC: 5000
+    MASKABLE_PPO: 8192
+  full_timesteps:
+    DQN: 150000
+    SAC: 250000
+    MASKABLE_PPO: 250000
+
+stress:
+  transaction_cost_bps: 10.0
+  slippage_bps: 10.0
+
+gates:
+  minimum_folds: 2
+  minimum_positive_test_fold_ratio: 0.75
+  minimum_positive_stress_fold_ratio: 0.75
+  minimum_median_test_return: 0.0
+  minimum_median_test_sharpe: 0.0
+  maximum_worst_test_drawdown: 0.20
+  minimum_benchmark_edge_ratio: 0.50
+  minimum_median_test_trades: 5
+
+deployment:
+  research_status: SHADOW_VALIDATED
+  registry_status: VALIDATED_AGENT_CHALLENGER
+  automatic_live_promotion: false
+  execution_authority: NONE

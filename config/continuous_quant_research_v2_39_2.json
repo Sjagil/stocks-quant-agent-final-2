@@ -1,0 +1,72 @@
+{
+  "schema": "continuous_quant_research_v2_39_2",
+  "runtime_root": "artifacts/research_runtime/continuous_quant_research_v2_39",
+  "database_name": "research.db",
+  "research_compliance_gate_applied": false,
+  "automatic_live_promotion": false,
+  "automatic_champion_promotion": false,
+  "broker_submission_enabled": false,
+  "execution_authority": "NONE",
+  "order_calls": 0,
+  "scheduler": {
+    "discovery_refresh_hours": 24,
+    "candidate_revalidation_hours": 24,
+    "challenger_revalidation_hours": 72,
+    "champion_revalidation_hours": 168,
+    "watch_revalidation_hours": 24,
+    "degraded_revalidation_hours": 12,
+    "job_lease_seconds": 900,
+    "max_attempts": 3,
+    "retry_base_seconds": 60
+  },
+  "health": {
+    "stale_evidence_hours": 168,
+    "promotion_evidence_fresh_hours": 720,
+    "psi_watch": 0.1,
+    "psi_quarantine": 0.25,
+    "js_watch": 0.08,
+    "js_quarantine": 0.2,
+    "decay_watch": 0.35,
+    "decay_quarantine": 0.7,
+    "disagreement_watch": 0.45,
+    "disagreement_quarantine": 0.75,
+    "minimum_shadow_trades_for_promotion_review": 30,
+    "minimum_independent_evidence_classes": 2,
+    "minimum_independent_evidence_sources": 2,
+    "minimum_oos_observations": 60,
+    "minimum_posterior_net_edge_bps": 0.0,
+    "minimum_cost_stress_multiplier": 2.0,
+    "require_cost_robustness_for_champion_review": true,
+    "require_fresh_outcome_evidence": true,
+    "minimum_quality_score_for_champion_review": 0.72,
+    "retirement_failure_streak": 3
+  },
+  "quality_weights": {
+    "statistical_validation": 0.15,
+    "oos_robustness": 0.15,
+    "cost_robustness": 0.15,
+    "shadow_evidence": 0.15,
+    "cross_engine": 0.1,
+    "generalization": 0.1,
+    "calibration": 0.05,
+    "evidence_breadth": 0.1,
+    "freshness": 0.05
+  },
+  "bayesian": {
+    "prior_mean_bps": 0.0,
+    "prior_strength": 20.0
+  },
+  "discovery": {
+    "default_limit": 150,
+    "script": "scripts/run_parallel_research.py"
+  },
+  "artifact_evidence_bridge": {
+    "enabled": true
+  },
+  "inbox": {
+    "shadow_feedback_globs": [
+      "artifacts/research_runtime/continuous_quant_research_v2_39/inbox/shadow_feedback*.jsonl",
+      "artifacts/research_runtime/continuous_quant_research_v2_39/inbox/shadow_feedback*.csv"
+    ]
+  }
+}

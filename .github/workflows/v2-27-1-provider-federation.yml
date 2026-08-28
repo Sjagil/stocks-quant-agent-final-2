@@ -1,0 +1,16 @@
+name: v2.27.1 provider federation
+on:
+  push:
+    branches:
+      - feature/current-session-data-federation-v2-27-1
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r requirements.txt
+      - run: python -m pytest -q tests/test_provider_federation_v2_27.py tests/test_current_session_market_bridge_v2_27.py tests/test_start_preflight_partial_freshness_v2_27.py tests/test_start_preflight_v2_26.py

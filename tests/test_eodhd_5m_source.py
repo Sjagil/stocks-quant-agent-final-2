@@ -1,3 +1,4 @@
+from datetime import timedelta
 import json
 
 import pandas as pd
@@ -189,9 +190,7 @@ def test_eodhd_chunks_stay_within_600_day_limit():
             stop
             - start
         )
-        <= pd.Timedelta(
-            days=600
-        )
+        <= timedelta(days=600)
         for start, stop
         in windows
     )

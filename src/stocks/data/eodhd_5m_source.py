@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 import json
 from dataclasses import (
     asdict,
@@ -150,15 +152,11 @@ def aggregate_5m_to_15m(
                 bucket_start,
                 (
                     bucket_start
-                    + pd.Timedelta(
-                        minutes=5
-                    )
+                    + timedelta(minutes=5)
                 ),
                 (
                     bucket_start
-                    + pd.Timedelta(
-                        minutes=10
-                    )
+                    + timedelta(minutes=10)
                 ),
             ],
             name="timestamp",

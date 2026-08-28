@@ -1,0 +1,32 @@
+{
+  "schema": "data_quality_v2_29",
+  "authority": "RESEARCH_SHADOW_ONLY",
+  "execution_authority": "NONE",
+  "market_data_quality": {
+    "minimum_coverage": 0.95,
+    "maximum_duplicate_ratio": 0.0,
+    "maximum_ohlc_violation_ratio": 0.0,
+    "maximum_negative_volume_ratio": 0.0,
+    "maximum_gap_ratio": 0.02,
+    "maximum_outlier_ratio": 0.02
+  },
+  "provider_health": {
+    "ok_weight": 1.0,
+    "empty_weight": 0.35,
+    "error_weight": 0.0,
+    "unconfigured_weight": 0.0,
+    "healthy_threshold": 0.9,
+    "degraded_threshold": 0.6,
+    "weak_threshold": 0.3
+  },
+  "principles": {
+    "average_conflicting_ohlc": false,
+    "forward_fill_missing_market_bars": false,
+    "preserve_provenance": true,
+    "retain_disagreements": true
+  },
+  "safety": {
+    "broker_submission_enabled": false,
+    "automatic_live_promotion": false
+  }
+}

@@ -1,0 +1,261 @@
+from __future__ import annotations
+
+import importlib.util
+import os
+from dataclasses import asdict
+from pathlib import Path
+from typing import Any
+
+import pandas as pd
+
+from stocks.data.canonical import (
+    CanonicalMetadata,
+    merge_canonical_frames,
+    read_canonical_parquet,
+    write_canonical_parquet,
+)
+from .freshness_v2_41 import check_file_freshness
+
+
+def _load_download_module(root: Path):
+    path = root / "scripts/download_market_data.py"
+    spec = importlib.util.spec_from_file_location("_download_market_data_v241", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _metadata_from_existing(symbol: str, timeframe: str, exchange: str, prior: dict[str, Any] | None):
+    prior = prior or {}
+    return CanonicalMetadata(
+        symbol=symbol.upper(),
+        timeframe=timeframe,
+        source=str(prior.get("source") or "EODHD"),
+        exchange=str(prior.get("exchange") or exchange).upper(),
+        asset_type=prior.get("asset_type"),
+        currency=prior.get("currency"),
+        adjustment=str(prior.get("adjustment") or "raw"),
+        provenance={
+            **(prior.get("provenance") or {}),
+            "incremental_refresh_v2_41": True,
+            "provider_rows_are_not_filled": True,
+        },
+    )
+
+
+def _session_close_marker_mask(
+    frame: pd.DataFrame,
+    *,
+    timezone_name: str,
+    close_time: str,
+) -> pd.Series:
+    if frame.empty:
+        return pd.Series(False, index=frame.index, dtype=bool)
+
+    required = {"open", "high", "low", "close", "volume"}
+    if not required.issubset(set(frame.columns)):
+        return pd.Series(False, index=frame.index, dtype=bool)
+
+    idx = pd.DatetimeIndex(pd.to_datetime(frame.index, utc=True))
+    local_clock = pd.Series(
+        idx.tz_convert(timezone_name).strftime("%H:%M"),
+        index=frame.index,
+    )
+    ohlc = frame[["open", "high", "low", "close"]].apply(
+        pd.to_numeric,
+        errors="coerce",
+    )
+    volume = pd.to_numeric(frame["volume"], errors="coerce")
+    all_ohlc_present = ohlc.notna().all(axis=1)
+    flat_ohlc = ohlc.nunique(axis=1, dropna=False).eq(1)
+
+    return (
+        local_clock.eq(str(close_time))
+        & volume.isna()
+        & all_ohlc_present
+        & flat_ohlc
+    ).astype(bool)
+
+
+def validate_provider_quality_audits_v241(
+    audits: list[dict[str, Any]],
+    *,
+    semantic_max_drop_fraction: float,
+    timezone_name: str,
+    close_time: str,
+) -> list[dict[str, Any]]:
+    enriched: list[dict[str, Any]] = []
+
+    for original in audits:
+        audit = dict(original)
+        raw_count = int(audit.get("rows_raw", 0) or 0)
+        dropped = int(audit.get("rows_dropped", 0) or 0)
+        marker_count = 0
+        non_marker_count = dropped
+
+        if dropped:
+            raw_path = audit.get("quarantine_path")
+            if not raw_path:
+                raise ValueError(
+                    f"{audit.get('ticker', 'UNKNOWN')}: dropped provider rows "
+                    "without quarantine_path"
+                )
+            quarantine_path = Path(raw_path)
+            if not quarantine_path.is_file():
+                raise ValueError(
+                    f"{audit.get('ticker', 'UNKNOWN')}: quarantine file missing: "
+                    f"{quarantine_path}"
+                )
+
+            bad_rows = pd.read_parquet(quarantine_path)
+            if len(bad_rows) != dropped:
+                raise ValueError(
+                    f"{audit.get('ticker', 'UNKNOWN')}: quarantine row count "
+                    f"{len(bad_rows)} != audit rows_dropped {dropped}"
+                )
+
+            marker_mask = _session_close_marker_mask(
+                bad_rows,
+                timezone_name=timezone_name,
+                close_time=close_time,
+            )
+            marker_count = int(marker_mask.sum())
+            non_marker_count = int((~marker_mask).sum())
+
+        eligible_raw = max(raw_count - marker_count, 0)
+        semantic_fraction = (
+            float(non_marker_count) / float(eligible_raw)
+            if eligible_raw
+            else (1.0 if non_marker_count else 0.0)
+        )
+
+        audit.update(
+            {
+                "session_close_markers_excluded": marker_count,
+                "semantic_non_marker_drops": non_marker_count,
+                "semantic_eligible_rows_raw": eligible_raw,
+                "semantic_non_marker_drop_fraction": semantic_fraction,
+                "semantic_max_drop_fraction": float(semantic_max_drop_fraction),
+                "session_close_marker_timezone": timezone_name,
+                "session_close_marker_time": close_time,
+            }
+        )
+
+        if semantic_fraction > float(semantic_max_drop_fraction):
+            raise ValueError(
+                f"{audit.get('ticker', 'UNKNOWN')}: semantic provider quality "
+                f"failure after session-marker classification: "
+                f"non_marker_drop_fraction={semantic_fraction:.6f} "
+                f"> max={float(semantic_max_drop_fraction):.6f}; "
+                f"session_close_markers_excluded={marker_count}; "
+                f"non_marker_drops={non_marker_count}"
+            )
+
+        enriched.append(audit)
+
+    return enriched
+
+def refresh_provider_fabric(root: str | Path, cfg: dict[str, Any]) -> dict[str, Any]:
+    root = Path(root).resolve()
+    data_cfg = cfg["data"]
+    out_root = root / data_cfg["provider_root"]
+    out_root.mkdir(parents=True, exist_ok=True)
+
+    mod = _load_download_module(root)
+    mod.load_local_env(root / ".env")
+    token = os.environ.get("EODHD_API_KEY", "").strip()
+    if not token:
+        return {
+            "status": "BLOCKED",
+            "reason": "EODHD_API_KEY_MISSING",
+            "symbols": [],
+        }
+
+    now = pd.Timestamp.now(tz="UTC")
+    end = now
+    period = pd.Timedelta(hours=1 if data_cfg["timeframe"] == "1h" else 0)
+    close_lag = pd.Timedelta(seconds=int(data_cfg.get("bar_close_lag_seconds", 120)))
+    closed_cutoff = now - close_lag
+    results = []
+    failures = 0
+
+    for symbol in data_cfg["symbols"]:
+        symbol = str(symbol).upper()
+        target = out_root / f"{symbol}_{data_cfg['timeframe']}.parquet"
+        prior_frame = pd.DataFrame()
+        prior_meta = None
+        if target.is_file():
+            try:
+                prior_frame, prior_meta = read_canonical_parquet(
+                    target, verify_hash=False, verify_metadata=False
+                )
+            except Exception as exc:
+                results.append({"symbol": symbol, "status": "FAILED", "reason": f"EXISTING_DATA_INVALID:{type(exc).__name__}:{exc}"})
+                failures += 1
+                continue
+
+        if not prior_frame.empty:
+            start = prior_frame.index.max() - pd.Timedelta(days=int(data_cfg.get("overlap_days", 5)))
+        else:
+            start = now - pd.Timedelta(days=int(data_cfg.get("bootstrap_days", 3650)))
+
+        try:
+            new_frame, request_count, audits = mod.download(
+                token,
+                mod.ticker_for(symbol, data_cfg["exchange"]),
+                data_cfg["timeframe"],
+                pd.Timestamp(start),
+                pd.Timestamp(end),
+                max_drop_fraction=float(data_cfg.get("provider_transport_max_drop_fraction", 0.20)),
+                quarantine_dir=out_root.parent / "quarantine" / "eodhd",
+            )
+            audits = validate_provider_quality_audits_v241(
+                audits,
+                semantic_max_drop_fraction=float(
+                    data_cfg.get("max_drop_fraction", 0.02)
+                ),
+                timezone_name=str(
+                    data_cfg.get(
+                        "session_close_marker_timezone",
+                        "America/New_York",
+                    )
+                ),
+                close_time=str(
+                    data_cfg.get("session_close_marker_time", "16:00")
+                ),
+            )
+            if period > pd.Timedelta(0):
+                new_frame = new_frame.loc[(new_frame.index + period) <= closed_cutoff]
+            merged = merge_canonical_frames([prior_frame, new_frame])
+            meta = _metadata_from_existing(symbol, data_cfg["timeframe"], data_cfg["exchange"], prior_meta)
+            write_canonical_parquet(
+                merged,
+                target,
+                meta,
+                extra_metadata={
+                    "incremental_refresh": True,
+                    "refresh_requests": int(request_count),
+                    "provider_quality": audits,
+                    "closed_bar_cutoff": closed_cutoff.isoformat(),
+                },
+            )
+            fresh = check_file_freshness(
+                symbol,
+                target,
+                now=now,
+                calendar_name=data_cfg.get("market_calendar", "NYSE"),
+                tolerance_minutes=float(data_cfg.get("freshness_tolerance_minutes", 150)),
+            )
+            results.append({"symbol": symbol, "status": "SUCCEEDED", "freshness": fresh.to_dict()})
+        except Exception as exc:
+            failures += 1
+            results.append({"symbol": symbol, "status": "FAILED", "reason": f"{type(exc).__name__}:{exc}"})
+
+    return {
+        "status": "SUCCEEDED" if failures == 0 else ("PARTIAL" if failures < len(results) else "FAILED"),
+        "failures": failures,
+        "symbols": results,
+        "execution_authority": "NONE",
+    }
