@@ -25,6 +25,8 @@ def run_allowlisted_component_v240(project_root: str | Path, command: list[str],
         (root / "scripts/run_continuous_quant_research_v2_39_2.py").resolve(),
         (root / "scripts/run_research_evidence_production_v2_39_3.py").resolve(),
         (root / "scripts/run_shadow_lifecycle_v2_37.py").resolve(),
+        (root / "scripts/build_mappo_dataset_v2_42.py").resolve(),
+        (root / "scripts/run_agent_shadow_advisory_v2_42.py").resolve(),
     }
     if script not in allowed:
         raise ValueError(f"component script not allowlisted: {script}")

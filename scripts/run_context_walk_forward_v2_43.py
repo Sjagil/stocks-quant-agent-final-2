@@ -9,16 +9,15 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT / "src") not in sys.path:
     sys.path.insert(0, str(ROOT / "src"))
 
-from stocks.providers.env import load_project_env
-from stocks.production.context_portfolio_v2_43 import apply_portfolio_context_v243
+from stocks.production.context_validation_v2_43 import context_walk_forward_v243
 
 
 def main() -> int:
-    load_project_env(ROOT)
-    cfg = json.loads((ROOT / "config/market_context_v2_43.json").read_text(encoding="utf-8"))
-    result = apply_portfolio_context_v243(ROOT, cfg)
+    production = json.loads((ROOT / "config/production_runtime_v2_41.json").read_text(encoding="utf-8"))
+    context = json.loads((ROOT / "config/market_context_v2_43.json").read_text(encoding="utf-8"))
+    result = context_walk_forward_v243(ROOT, production, context)
     print(json.dumps(result, indent=2, sort_keys=True, default=str))
-    print("PRODUCTION_INTELLIGENCE_V2_42_COMPAT_V2_43_OK")
+    print("CONTEXT_WALK_FORWARD_V2_43", result["status"])
     print("EXECUTION_AUTHORITY NONE")
     return 0
 

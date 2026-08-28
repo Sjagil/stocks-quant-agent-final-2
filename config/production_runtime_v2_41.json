@@ -48,7 +48,8 @@
     "require_all_symbols_fresh": true,
     "ibkr_source_bar_minutes": 30,
     "production_target_bar_minutes": 60,
-    "ibkr_eodhd_alignment": "NYSE_OPEN_ANCHORED_30M_TO_60M"
+    "ibkr_eodhd_alignment": "NYSE_OPEN_ANCHORED_30M_TO_60M",
+    "ibkr_historical_reader": "stocks_ibkr_reference"
   },
   "broker": {
     "host_env": "IBKR_HOST",
@@ -89,7 +90,8 @@
     "require_fresh_entry_trigger": true,
     "require_no_proposal_blockers": true,
     "allow_rl_direct_broker_control": false,
-    "minimum_rl_test_trades_for_future_live_use": 30
+    "minimum_rl_test_trades_for_future_live_use": 30,
+    "require_context_readiness": true
   },
   "authority": {
     "automatic_champion_promotion": false,

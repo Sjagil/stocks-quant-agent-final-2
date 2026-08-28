@@ -12,6 +12,7 @@ from .current_session_alignment_v2_42 import align_ibkr_rth_to_eodhd_grid_v242
 from .current_session_data_v2_41_2 import cross_provider_close_check, merge_overlay
 from .freshness_v2_41 import check_file_freshness
 from .ibkr_adapter_v2_41 import IBKRBrokerV241
+from .ibkr_historical_v2_43 import fetch_historical_batch_v243
 
 
 def selected_forward_symbols_v242(root: Path, maximum_symbols: int = 50) -> list[str]:
@@ -78,64 +79,182 @@ def hydrate_strategy_candidates_v242(root: str | Path, production_cfg: dict[str,
     hcfg = intelligence_cfg["strategy_hydration"]
     symbols = selected_forward_symbols_v242(root, int(hcfg.get("maximum_symbols", 50)))
     if not symbols:
-        return {"status": "FAILED", "reason": "NO_SELECTED_FORWARD_SYMBOLS", "symbols": [], "execution_authority": "NONE"}
+        return {
+            "status": "FAILED",
+            "reason": "NO_SELECTED_FORWARD_SYMBOLS",
+            "symbols": [],
+            "execution_authority": "NONE",
+        }
+
     provider_root = root / production_cfg["data"]["provider_root"]
-    base_root = root / hcfg.get("base_history_root", "data/canonical/production_history/strategy_base")
+    base_root = root / hcfg.get(
+        "base_history_root",
+        "data/canonical/production_history/strategy_base",
+    )
     now = pd.Timestamp.now(tz="UTC")
     min_overlap = int(hcfg.get("minimum_cross_provider_overlap_bars", 10))
     max_bps = float(hcfg.get("maximum_cross_provider_close_disagreement_bps", 50.0))
     tolerance = float(production_cfg["data"].get("freshness_tolerance_minutes", 150))
+    source_minutes = int(production_cfg["data"].get("ibkr_source_bar_minutes", 30))
+    target_minutes = int(production_cfg["data"].get("production_target_bar_minutes", 60))
+    reader = str(production_cfg["data"].get("ibkr_historical_reader", "legacy")).strip()
+
     results = []
     failures = 0
     write_calls = 0
-    with IBKRBrokerV241(production_cfg, readonly=True) as broker:
+    frames: dict[str, pd.DataFrame] = {}
+    provider_results: dict[str, dict[str, Any]] = {}
+
+    if reader == "stocks_ibkr_reference":
+        try:
+            batch = fetch_historical_batch_v243(
+                root,
+                symbols,
+                duration=str(production_cfg["data"].get("ibkr_history_duration", "5 D")),
+                bar_size=str(production_cfg["data"].get("ibkr_history_bar_size", "30 mins")),
+                what_to_show=str(production_cfg["data"].get("ibkr_history_what_to_show", "TRADES")),
+                use_rth=bool(production_cfg["data"].get("ibkr_history_use_rth", True)),
+            )
+            frames = batch.frames
+            provider_results = batch.symbol_results
+            write_calls = int(batch.broker_write_calls)
+        except Exception as exc:
+            return {
+                "status": "FAILED",
+                "reason": f"IBKR_HISTORICAL_READER_FAILED:{type(exc).__name__}:{exc}",
+                "selected_symbols": symbols,
+                "successes": 0,
+                "failures": len(symbols),
+                "symbols": [],
+                "broker_write_calls": 0,
+                "execution_authority": "NONE",
+            }
+
+    def process(symbol: str, raw: pd.DataFrame) -> None:
+        nonlocal failures
+        try:
+            base_path = _seed_base(root, symbol, base_root / f"{symbol}_1h.parquet")
+            base, base_meta = read_canonical_parquet(
+                base_path,
+                verify_hash=False,
+                verify_metadata=False,
+            )
+            aligned, alignment = align_ibkr_rth_to_eodhd_grid_v242(
+                raw,
+                now=now,
+                calendar_name=str(production_cfg["data"].get("market_calendar", "NYSE")),
+                source_bar_minutes=source_minutes,
+                target_bar_minutes=target_minutes,
+                close_lag_seconds=int(production_cfg["data"].get("bar_close_lag_seconds", 120)),
+            )
+            if aligned.empty:
+                raise ValueError("IBKR_ALIGNMENT_NO_CLOSED_BARS")
+            cross = cross_provider_close_check(
+                base,
+                aligned,
+                minimum_overlap_bars=min_overlap,
+                maximum_close_disagreement_bps=max_bps,
+            )
+            if not cross.passed:
+                raise ValueError(
+                    f"{cross.reason}: overlap={cross.overlap_bars} "
+                    f"max_bps={cross.max_close_disagreement_bps}"
+                )
+            overlay = aligned.loc[aligned.index > base.index.max()].copy()
+            if overlay.empty:
+                latest_session_date = aligned.index.max().date()
+                overlay = aligned.loc[aligned.index.date == latest_session_date].copy()
+            merged = merge_overlay(base, overlay)
+            target = provider_root / f"{symbol}_1h.parquet"
+            meta = CanonicalMetadata(
+                symbol=symbol,
+                timeframe="1h",
+                source="STRATEGY_BASE+IBKR30M_ALIGNED",
+                exchange=str((base_meta or {}).get("exchange") or "US"),
+                asset_type=(base_meta or {}).get("asset_type"),
+                currency=(base_meta or {}).get("currency") or "USD",
+                adjustment=str((base_meta or {}).get("adjustment") or "raw"),
+                provenance={
+                    **((base_meta or {}).get("provenance") or {}),
+                    "strategy_hydration_v2_43": True,
+                    "base_path": str(base_path),
+                    "historical_reader": reader,
+                },
+            )
+            write_canonical_parquet(
+                merged,
+                target,
+                meta,
+                extra_metadata={
+                    "cross_provider": cross.to_dict(),
+                    "alignment": alignment.to_dict(),
+                },
+            )
+            fresh = check_file_freshness(
+                symbol,
+                target,
+                now=now,
+                calendar_name=str(production_cfg["data"].get("market_calendar", "NYSE")),
+                tolerance_minutes=tolerance,
+            )
+            if not fresh.passed:
+                raise ValueError(f"STRATEGY_SOURCE_STALE:{fresh.reason}")
+            results.append({
+                "symbol": symbol,
+                "status": "SUCCEEDED",
+                "freshness": fresh.to_dict(),
+                "cross_provider": cross.to_dict(),
+                "alignment": alignment.to_dict(),
+                "historical_reader": reader,
+            })
+        except Exception as exc:
+            failures += 1
+            results.append({
+                "symbol": symbol,
+                "status": "FAILED",
+                "reason": f"{type(exc).__name__}:{exc}",
+                "provider": provider_results.get(symbol, {}),
+            })
+
+    if reader == "stocks_ibkr_reference":
         for symbol in symbols:
-            try:
-                base_path = _seed_base(root, symbol, base_root / f"{symbol}_1h.parquet")
-                base, base_meta = read_canonical_parquet(base_path, verify_hash=False, verify_metadata=False)
-                raw = broker.historical_bars(symbol, duration="5 D", bar_size="30 mins", what_to_show="TRADES", use_rth=True)
-                aligned, alignment = align_ibkr_rth_to_eodhd_grid_v242(
-                    raw, now=now,
-                    calendar_name=str(production_cfg["data"].get("market_calendar", "NYSE")),
-                    close_lag_seconds=int(production_cfg["data"].get("bar_close_lag_seconds", 120)),
-                )
-                cross = cross_provider_close_check(
-                    base, aligned,
-                    minimum_overlap_bars=min_overlap,
-                    maximum_close_disagreement_bps=max_bps,
-                )
-                if not cross.passed:
-                    raise ValueError(f"{cross.reason}: overlap={cross.overlap_bars} max_bps={cross.max_close_disagreement_bps}")
-                # Only overlay bars newer than the finalized/base history boundary; aligned includes only closed bars.
-                overlay = aligned.loc[aligned.index > base.index.max()].copy()
-                if overlay.empty:
-                    # Same-session exact timestamp can replace stale source if the base ended earlier in the day.
-                    latest_session_date = aligned.index.max().date()
-                    overlay = aligned.loc[aligned.index.date == latest_session_date].copy()
-                merged = merge_overlay(base, overlay)
-                target = provider_root / f"{symbol}_1h.parquet"
-                meta = CanonicalMetadata(
-                    symbol=symbol, timeframe="1h", source="STRATEGY_BASE+IBKR30M_ALIGNED",
-                    exchange=str((base_meta or {}).get("exchange") or "US"),
-                    asset_type=(base_meta or {}).get("asset_type"), currency=(base_meta or {}).get("currency") or "USD",
-                    adjustment=str((base_meta or {}).get("adjustment") or "raw"),
-                    provenance={**((base_meta or {}).get("provenance") or {}), "strategy_hydration_v2_42": True, "base_path": str(base_path)},
-                )
-                write_canonical_parquet(merged, target, meta, extra_metadata={"cross_provider": cross.to_dict(), "alignment": alignment.to_dict()})
-                fresh = check_file_freshness(
-                    symbol, target, now=now,
-                    calendar_name=str(production_cfg["data"].get("market_calendar", "NYSE")),
-                    tolerance_minutes=tolerance,
-                )
-                if not fresh.passed:
-                    raise ValueError(f"STRATEGY_SOURCE_STALE:{fresh.reason}")
-                results.append({"symbol": symbol, "status": "SUCCEEDED", "freshness": fresh.to_dict(), "cross_provider": cross.to_dict(), "alignment": alignment.to_dict()})
-            except Exception as exc:
+            frame = frames.get(symbol)
+            if frame is None or frame.empty:
                 failures += 1
-                results.append({"symbol": symbol, "status": "FAILED", "reason": f"{type(exc).__name__}:{exc}"})
-        write_calls = int(broker.write_calls)
+                results.append({
+                    "symbol": symbol,
+                    "status": "FAILED",
+                    "reason": "IBKR_HISTORICAL_SYMBOL_UNAVAILABLE",
+                    "provider": provider_results.get(symbol, {}),
+                })
+                continue
+            process(symbol, frame)
+    else:
+        with IBKRBrokerV241(production_cfg, readonly=True) as broker:
+            for symbol in symbols:
+                try:
+                    raw = broker.historical_bars(
+                        symbol,
+                        duration="5 D",
+                        bar_size="30 mins",
+                        what_to_show="TRADES",
+                        use_rth=True,
+                    )
+                except Exception as exc:
+                    failures += 1
+                    results.append({
+                        "symbol": symbol,
+                        "status": "FAILED",
+                        "reason": f"{type(exc).__name__}:{exc}",
+                    })
+                    continue
+                process(symbol, raw)
+            write_calls = int(broker.write_calls)
+
     require_all = bool(hcfg.get("require_all_selected_symbols_fresh", True))
-    passed = write_calls == 0 and (failures == 0 if require_all else failures < len(symbols))
+    passed = write_calls == 0 and (
+        failures == 0 if require_all else failures < len(symbols)
+    )
     return {
         "status": "SUCCEEDED" if passed else "FAILED",
         "selected_symbols": symbols,
@@ -143,5 +262,7 @@ def hydrate_strategy_candidates_v242(root: str | Path, production_cfg: dict[str,
         "failures": failures,
         "symbols": results,
         "broker_write_calls": write_calls,
+        "historical_reader": reader,
         "execution_authority": "NONE",
     }
+
