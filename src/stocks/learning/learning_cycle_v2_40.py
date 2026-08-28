@@ -134,6 +134,16 @@ def run_learning_cycle_v240(project_root: str | Path, config: dict, *, force_tra
                 if not bool(runtime_cfg.get("continue_on_component_failure", True)):
                     raise
 
+        mappo_every = max(1, int(runtime_cfg.get("mappo_dataset_refresh_every_cycles", 4)))
+        mappo_script = str(strategy_cfg.get("mappo_dataset_script") or "")
+        if (cycle_index % mappo_every == 0) and mappo_script and (root / mappo_script).is_file():
+            components.append(_run_component(root, store, cycle_id, "mappo_dataset", [mappo_script], timeout))
+
+        shadow_agent_every = max(1, int(runtime_cfg.get("agent_shadow_every_cycles", 1)))
+        shadow_agent_script = str(strategy_cfg.get("agent_shadow_script") or "")
+        if (cycle_index % shadow_agent_every == 0) and shadow_agent_script and (root / shadow_agent_script).is_file():
+            components.append(_run_component(root, store, cycle_id, "agent_shadow", [shadow_agent_script], timeout))
+
         mappo_cfg = config.get("mappo") or {}
         if mappo_cfg.get("enabled"):
             dataset = Path(mappo_cfg.get("dataset_path", ""))

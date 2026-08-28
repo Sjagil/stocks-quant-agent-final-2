@@ -11,6 +11,7 @@ from stocks.data.canonical import (
     read_canonical_parquet,
     write_canonical_parquet,
 )
+from .current_session_alignment_v2_42 import align_ibkr_rth_to_eodhd_grid_v242
 from .current_session_data_v2_41_2 import (
     closed_latest_session_bars,
     cross_provider_close_check,
@@ -147,13 +148,21 @@ def refresh_provider_fabric(root: str | Path, cfg: dict[str, Any]) -> dict[str, 
                     historical, history_meta = read_canonical_parquet(
                         history_path, verify_hash=False, verify_metadata=False
                     )
-                    ibkr_recent = broker.historical_bars(
+                    ibkr_raw = broker.historical_bars(
                         symbol,
                         duration=duration,
                         bar_size=bar_size,
                         what_to_show=what_to_show,
                         use_rth=use_rth,
                     )
+                    ibkr_recent, alignment = align_ibkr_rth_to_eodhd_grid_v242(
+                        ibkr_raw,
+                        now=now,
+                        calendar_name=calendar_name,
+                        close_lag_seconds=int(data_cfg.get("bar_close_lag_seconds", 120)),
+                    )
+                    if ibkr_recent.empty:
+                        raise ValueError("IBKR_ALIGNMENT_NO_CLOSED_BARS")
                     cross = cross_provider_close_check(
                         historical,
                         ibkr_recent,
@@ -202,8 +211,12 @@ def refresh_provider_fabric(root: str | Path, cfg: dict[str, Any]) -> dict[str, 
                             "ibkr_bar_size": bar_size,
                             "ibkr_what_to_show": what_to_show,
                             "ibkr_use_rth": use_rth,
+                            "ibkr_raw_rows": len(ibkr_raw),
+                            "ibkr_raw_rows": len(ibkr_raw),
                             "ibkr_recent_rows": len(ibkr_recent),
                             "ibkr_closed_session_rows": len(overlay),
+                            "alignment": alignment.to_dict(),
+                            "alignment": alignment.to_dict(),
                             "session": session.to_dict(),
                             "cross_provider": cross.to_dict(),
                         },
@@ -223,8 +236,12 @@ def refresh_provider_fabric(root: str | Path, cfg: dict[str, Any]) -> dict[str, 
                         "freshness": fresh.to_dict(),
                         "session": session.to_dict(),
                         "cross_provider": cross.to_dict(),
+                        "ibkr_raw_rows": len(ibkr_raw),
+                        "ibkr_raw_rows": len(ibkr_raw),
                         "ibkr_recent_rows": len(ibkr_recent),
                         "ibkr_closed_session_rows": len(overlay),
+                        "alignment": alignment.to_dict(),
+                        "alignment": alignment.to_dict(),
                     })
                 except Exception as exc:
                     failures += 1

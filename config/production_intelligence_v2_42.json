@@ -1,0 +1,53 @@
+{
+  "schema": "production_intelligence_v2_42",
+  "enabled": true,
+  "provider": "EODHD",
+  "artifact_root": "artifacts/production_runtime_v2_42",
+  "context_max_age_minutes": 20,
+  "news": {
+    "enabled": true,
+    "lookback_days": 3,
+    "limit_per_symbol": 30,
+    "market_context_symbols": ["SPY", "QQQ"],
+    "require_finbert_for_new_entries": true,
+    "minimum_story_evidence_score": 0.12,
+    "negative_block_weighted_sentiment": -0.45,
+    "negative_block_min_evidence": 0.22,
+    "maximum_positive_conviction_boost": 0.08,
+    "maximum_negative_conviction_haircut": 0.25
+  },
+  "macro": {
+    "enabled": true,
+    "countries": ["US"],
+    "lookback_days": 1,
+    "lookahead_days": 2,
+    "high_impact_pre_minutes": 90,
+    "high_impact_post_minutes": 30,
+    "medium_impact_pre_minutes": 60,
+    "medium_conviction_multiplier": 0.85,
+    "high_impact_keywords": [
+      "interest rate", "federal reserve", "fed ", "fomc", "cpi", "consumer price",
+      "pce", "nonfarm", "non-farm", "payroll", "unemployment rate", "gdp",
+      "gross domestic product", "retail sales", "ism manufacturing", "ism services",
+      "powell", "core inflation"
+    ],
+    "medium_impact_keywords": [
+      "jobless claims", "employment", "pmi", "producer price", "ppi", "industrial production",
+      "consumer confidence", "durable goods", "housing starts", "jolts", "trade balance"
+    ]
+  },
+  "strategy_hydration": {
+    "enabled": true,
+    "maximum_symbols": 50,
+    "base_history_root": "data/canonical/production_history/strategy_base",
+    "minimum_cross_provider_overlap_bars": 10,
+    "maximum_cross_provider_close_disagreement_bps": 50.0,
+    "require_all_selected_symbols_fresh": true
+  },
+  "agents": {
+    "minimum_test_trades_for_non_degenerate": 5,
+    "minimum_test_trades_for_decision_influence": 30,
+    "shadow_advisory_enabled": true,
+    "direct_broker_control": false
+  }
+}

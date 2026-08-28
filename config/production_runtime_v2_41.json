@@ -40,12 +40,15 @@
     "production_current_session_provider": "IBKR",
     "finalized_history_root": "data/canonical/production_history/eodhd",
     "ibkr_history_duration": "5 D",
-    "ibkr_history_bar_size": "1 hour",
+    "ibkr_history_bar_size": "30 mins",
     "ibkr_history_what_to_show": "TRADES",
     "ibkr_history_use_rth": true,
-    "minimum_cross_provider_overlap_bars": 3,
+    "minimum_cross_provider_overlap_bars": 10,
     "maximum_cross_provider_close_disagreement_bps": 50.0,
-    "require_all_symbols_fresh": true
+    "require_all_symbols_fresh": true,
+    "ibkr_source_bar_minutes": 30,
+    "production_target_bar_minutes": 60,
+    "ibkr_eodhd_alignment": "NYSE_OPEN_ANCHORED_30M_TO_60M"
   },
   "broker": {
     "host_env": "IBKR_HOST",

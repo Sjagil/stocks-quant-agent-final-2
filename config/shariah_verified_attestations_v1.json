@@ -1,0 +1,29 @@
+{
+  "attestations": {
+    "ETON": {
+      "automatic_inference": false,
+      "evidence_url": "https://musaffa.com/stock/ETON/",
+      "methodology": "AAOIFI Standard 21",
+      "notes": "Human-reviewed external AAOIFI compliance source",
+      "screened_at": "2026-08-20",
+      "source": "Musaffa",
+      "status": "SHARIAH_COMPLIANT",
+      "symbol": "ETON",
+      "valid_until": "2026-12-18",
+      "verification_mode": "EXPLICIT_HUMAN_ATTESTATION"
+    },
+    "WDC": {
+      "automatic_inference": false,
+      "evidence_url": "https://musaffa.com/stock/WDC/",
+      "methodology": "AAOIFI Standard 21",
+      "notes": "Human-reviewed external AAOIFI compliance source",
+      "screened_at": "2026-08-20",
+      "source": "Musaffa",
+      "status": "SHARIAH_COMPLIANT",
+      "symbol": "WDC",
+      "valid_until": "2026-12-18",
+      "verification_mode": "EXPLICIT_HUMAN_ATTESTATION"
+    }
+  },
+  "schema": "shariah_verified_attestations_v1"
+}

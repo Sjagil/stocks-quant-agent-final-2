@@ -12,8 +12,29 @@ def _bool(value: Any) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes"}
 
 
+def _contextual_proposal_path_v242(root: Path) -> Path | None:
+    path = root / "artifacts/production_runtime_v2_42/contextual_proposals.csv"
+    snapshot = root / "artifacts/production_runtime_v2_42/intelligence_snapshot.json"
+    if not path.is_file() or not snapshot.is_file():
+        return None
+    try:
+        import json
+        generated = pd.Timestamp(json.loads(snapshot.read_text()).get("generated_at"))
+        if generated.tzinfo is None:
+            generated = generated.tz_localize("UTC")
+        else:
+            generated = generated.tz_convert("UTC")
+        age = (pd.Timestamp.now(tz="UTC") - generated).total_seconds()
+        if age < 0 or age > 20 * 60:
+            return None
+    except Exception:
+        return None
+    return path
+
+
 def load_proposals(root: str | Path) -> list[dict[str, Any]]:
-    path = Path(root) / "artifacts/research_runtime/portfolio_decision_v2_7/proposals.csv"
+    root = Path(root)
+    path = _contextual_proposal_path_v242(root) or (root / "artifacts/research_runtime/portfolio_decision_v2_7/proposals.csv")
     if not path.is_file():
         return []
     frame = pd.read_csv(path)
