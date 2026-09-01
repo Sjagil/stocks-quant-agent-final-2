@@ -49,7 +49,8 @@
     "ibkr_source_bar_minutes": 30,
     "production_target_bar_minutes": 60,
     "ibkr_eodhd_alignment": "NYSE_OPEN_ANCHORED_30M_TO_60M",
-    "ibkr_historical_reader": "stocks_ibkr_reference"
+    "ibkr_historical_reader": "stocks_ibkr_reference",
+    "ibkr_historical_maximum_symbols_per_request": 2
   },
   "broker": {
     "host_env": "IBKR_HOST",
@@ -63,7 +64,9 @@
     "default_client_id": 41,
     "exchange": "SMART",
     "currency": "USD",
-    "market_data_type": 1
+    "market_data_type": 1,
+    "read_only_backend": "references/Stocks",
+    "paper_writer_backend": "LEGACY_DISABLED_UNTIL_SYSTEM_READY"
   },
   "risk": {
     "long_only": true,

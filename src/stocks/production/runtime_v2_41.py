@@ -16,6 +16,7 @@ from .authority_v2_41 import authority_status, configured_mode, engage_kill_swit
 from .contracts_v2_41 import ExecutionMode
 from .data_refresh_v2_41_2 import refresh_provider_fabric
 from .ibkr_adapter_v2_41 import IBKRBrokerV241
+from .ibkr_read_facade_v2_43_1 import IBKRReadFacadeV2431
 from .preflight_v2_41 import build_preflight
 from .proposal_adapter_v2_41 import eligible_buy_rows, position_state_map
 from .reconciliation_v2_41 import ingest_broker_fills, reconcile
@@ -183,7 +184,7 @@ def run_production_cycle_v241(
             else:
                 summary["errors"].append("DECISION_REFRESH_FAILED")
 
-        with IBKRBrokerV241(cfg, readonly=True) as broker:
+        with IBKRReadFacadeV2431(root, cfg) as broker:
             snapshot = broker.snapshot()
             summary["broker_snapshot"] = snapshot.to_dict()
             summary["fills_ingested"] = ingest_broker_fills(store, snapshot.fills)

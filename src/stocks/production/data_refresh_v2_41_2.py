@@ -21,7 +21,7 @@ from .current_session_data_v2_41_2 import (
 from .data_refresh_v2_41 import refresh_provider_fabric as refresh_finalized_history_v241
 from .freshness_v2_41 import check_file_freshness
 from .ibkr_adapter_v2_41 import IBKRBrokerV241
-from .ibkr_historical_v2_43 import fetch_historical_batch_v243
+from .ibkr_historical_v2_43_1 import fetch_historical_batch_v2431
 
 
 def _metadata(
@@ -166,7 +166,7 @@ def refresh_provider_fabric(root: str | Path, cfg: dict[str, Any]) -> dict[str, 
 
     if reader == "stocks_ibkr_reference":
         try:
-            batch = fetch_historical_batch_v243(
+            batch = fetch_historical_batch_v2431(
                 root,
                 [str(x).upper() for x in data_cfg["symbols"]],
                 duration=duration,

@@ -12,7 +12,7 @@ from .current_session_alignment_v2_42 import align_ibkr_rth_to_eodhd_grid_v242
 from .current_session_data_v2_41_2 import cross_provider_close_check, merge_overlay
 from .freshness_v2_41 import check_file_freshness
 from .ibkr_adapter_v2_41 import IBKRBrokerV241
-from .ibkr_historical_v2_43 import fetch_historical_batch_v243
+from .ibkr_historical_v2_43_1 import fetch_historical_batch_v2431
 
 
 def selected_forward_symbols_v242(root: Path, maximum_symbols: int = 50) -> list[str]:
@@ -107,7 +107,7 @@ def hydrate_strategy_candidates_v242(root: str | Path, production_cfg: dict[str,
 
     if reader == "stocks_ibkr_reference":
         try:
-            batch = fetch_historical_batch_v243(
+            batch = fetch_historical_batch_v2431(
                 root,
                 symbols,
                 duration=str(production_cfg["data"].get("ibkr_history_duration", "5 D")),

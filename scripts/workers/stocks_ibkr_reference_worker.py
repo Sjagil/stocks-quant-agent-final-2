@@ -21,6 +21,7 @@ CAPABILITIES = (
     "health",
     "broker_snapshot_read_only",
     "historical_bars_read_only",
+    "quote_read_only",
 )
 
 
@@ -146,6 +147,21 @@ def observer_settings() -> dict[str, Any]:
         ),
     }
 
+
+
+def market_data_settings() -> dict[str, Any]:
+    """Minimal settings for market data, deliberately independent of account sync."""
+    host = _required_env("IBKR_HOST")
+    port = _positive_int("IBKR_PORT")
+    primary = _positive_int("IBKR_CLIENT_ID")
+    synthetic_recon = int(os.environ.get("IBKR_RECON_CLIENT_ID", str(primary + 1000)))
+    return {
+        "host": host,
+        "port": port,
+        "primary_client_id": primary,
+        "recon_client_id": synthetic_recon,
+        "request_timeout_seconds": _float_env("IBKR_HISTORICAL_REQUEST_TIMEOUT_SECONDS", 20.0),
+    }
 
 def _health(request: dict[str, Any]) -> dict[str, Any]:
     repo = _repo(request)
@@ -433,7 +449,7 @@ def _historical_bars_read_only(
     from ibapi.contract import Contract
     from ibapi.wrapper import EWrapper
 
-    settings = observer_settings()
+    settings = market_data_settings()
     payload = request.get("payload") or {}
     symbols: list[str] = []
     for value in payload.get("symbols") or []:
@@ -480,14 +496,46 @@ def _historical_bars_read_only(
         def historicalDataEnd(self, reqId: int, start: str, end: str) -> None:  # noqa: N802
             state.event(reqId).set()
 
-        def error(self, reqId: Any, errorCode: Any, errorString: Any, *args: Any) -> None:  # type: ignore[override]
-            try:
-                code = int(errorCode)
-            except Exception:
-                code = -1
+        def error(self, reqId: Any, *args: Any) -> None:  # type: ignore[override]
+            """Support both pre-10.33 and 10.33+ IBKR error signatures."""
+            code = -1
+            message = ""
+            error_time = None
+
+            if len(args) >= 2:
+                try:
+                    first = int(args[0])
+                except Exception:
+                    first = None
+
+                # TWS API 10.33+:
+                # error(reqId, errorTime, errorCode, errorString, ...)
+                if (
+                    len(args) >= 3
+                    and first is not None
+                    and abs(first) > 10_000_000
+                ):
+                    error_time = first
+                    try:
+                        code = int(args[1])
+                    except Exception:
+                        code = -1
+                    message = str(args[2])
+
+                # Older API:
+                # error(reqId, errorCode, errorString, ...)
+                else:
+                    code = first if first is not None else -1
+                    message = str(args[1])
+
             with state.lock:
                 state.errors.append(
-                    {"request_id": reqId, "code": code, "message": str(errorString)}
+                    {
+                        "request_id": reqId,
+                        "error_time": error_time,
+                        "code": code,
+                        "message": message,
+                    }
                 )
 
     app = App()
@@ -543,11 +591,27 @@ def _historical_bars_read_only(
                 symbol_results[symbol] = {"status": "ERROR", "reason": "CALLBACK_TIMEOUT"}
                 continue
 
+            nonfatal_codes = {
+                2104,
+                2106,
+                2107,
+                2108,
+                2158,
+                2188,
+            }
+
+            request_warnings = [
+                row
+                for row in state.errors
+                if str(row.get("request_id")) == str(req_id)
+                and int(row.get("code", -1)) == 2188
+            ]
+
             request_errors = [
                 row
                 for row in state.errors
                 if str(row.get("request_id")) == str(req_id)
-                and int(row.get("code", -1)) not in {2104, 2106, 2107, 2108, 2158}
+                and int(row.get("code", -1)) not in nonfatal_codes
             ]
             parsed: list[dict[str, Any]] = []
             for bar in list(state.bars.get(req_id, [])):
@@ -568,6 +632,13 @@ def _historical_bars_read_only(
                 "status": "OK" if parsed and not request_errors else "ERROR",
                 "rows": len(parsed),
                 "errors": request_errors,
+                "warnings": request_warnings,
+                "historical_data_delay_seconds": (
+                    900 if request_warnings else 0
+                ),
+                "up_to_second_entitlement_available": (
+                    not bool(request_warnings)
+                ),
             }
             if index + 1 < len(symbols):
                 time.sleep(spacing)
@@ -625,6 +696,91 @@ def _historical_bars_read_only(
         "warnings": [] if ok_count == len(symbols) else ["SOME_IBKR_HISTORICAL_SYMBOLS_FAILED"],
     }
 
+
+def _quote_read_only(request: dict[str, Any], artifact_dir: Path) -> dict[str, Any]:
+    repo = _repo(request)
+    add_repo_src(repo)
+    from types import SimpleNamespace
+    from ibapi.contract import Contract
+    from stocks.live.quote import LiveQuoteApp
+
+    settings = market_data_settings()
+    payload = dict(request.get("payload") or {})
+    raw_client = os.environ.get("IBKR_MARKET_DATA_CLIENT_ID", "").strip()
+    client_id = int(raw_client) if raw_client else int(settings["primary_client_id"]) + 3100
+    if client_id in {0, int(settings["primary_client_id"]), int(settings["recon_client_id"])}:
+        raise ValueError("QUOTE_CLIENT_ID_COLLISION")
+    timeout = _float_env("IBKR_QUOTE_REQUEST_TIMEOUT_SECONDS", 15.0)
+    config = SimpleNamespace(
+        host=settings["host"],
+        port=int(settings["port"]),
+        quote_client_id=client_id,
+        callback_timeout_seconds=timeout,
+    )
+    app = LiveQuoteApp()
+    connection = app.connect(config)
+    if connection.get("status") != "GO":
+        raise RuntimeError(str(connection.get("reason") or "QUOTE_CONNECTION_FAILED"))
+    captured_at = datetime.now(UTC).isoformat()
+    try:
+        output_payload: dict[str, Any] = {
+            "schema": "ibkr_quote_read_only_v2_43_1",
+            "captured_at": captured_at,
+            "broker_write_calls": 0,
+            "order_calls": 0,
+            "execution_authority": "NONE",
+            "market_data_authority": "READ_ONLY",
+        }
+        if payload.get("symbol"):
+            contract = Contract()
+            contract.symbol = str(payload["symbol"]).upper()
+            contract.secType = "STK"
+            contract.exchange = "SMART"
+            contract.currency = "USD"
+            snap = app.snapshot(9_431_001, contract, timeout_seconds=timeout)
+            output_payload["quote"] = {
+                "symbol": contract.symbol,
+                "status": snap.get("status"),
+                "bid": None if snap.get("bid") is None else str(snap.get("bid")),
+                "ask": None if snap.get("ask") is None else str(snap.get("ask")),
+                "last": None if snap.get("last") is None else str(snap.get("last")),
+                "close": None if snap.get("close") is None else str(snap.get("close")),
+                "min_tick": 0.01,
+            }
+        elif payload.get("fx_base") and payload.get("fx_quote"):
+            contract = Contract()
+            contract.symbol = str(payload["fx_base"]).upper()
+            contract.secType = "CASH"
+            contract.exchange = "IDEALPRO"
+            contract.currency = str(payload["fx_quote"]).upper()
+            snap = app.snapshot(9_431_002, contract, timeout_seconds=timeout)
+            output_payload["fx"] = {
+                "base": contract.symbol,
+                "quote": contract.currency,
+                "status": snap.get("status"),
+                "bid": None if snap.get("bid") is None else str(snap.get("bid")),
+                "ask": None if snap.get("ask") is None else str(snap.get("ask")),
+                "last": None if snap.get("last") is None else str(snap.get("last")),
+            }
+        else:
+            raise ValueError("QUOTE_SYMBOL_OR_FX_PAIR_REQUIRED")
+    finally:
+        app.disconnect()
+
+    output = artifact_dir / "ibkr_quote_read_only_v2_43_1.json"
+    output.write_text(json.dumps(output_payload, indent=2, sort_keys=True, default=str) + "\n", encoding="utf-8")
+    return {
+        "state": "OK",
+        "data": {
+            "broker_write_calls": 0,
+            "order_calls": 0,
+            "execution_authority": "NONE",
+            "market_data_authority": "READ_ONLY",
+        },
+        "artifacts": [artifact_ref(output, media_type="application/json")],
+        "warnings": [],
+    }
+
 def handle(
     request: dict[str, Any],
     artifact_dir: Path,
@@ -642,6 +798,12 @@ def handle(
 
     if action == "historical_bars_read_only":
         return _historical_bars_read_only(
+            request,
+            artifact_dir,
+        )
+
+    if action == "quote_read_only":
+        return _quote_read_only(
             request,
             artifact_dir,
         )

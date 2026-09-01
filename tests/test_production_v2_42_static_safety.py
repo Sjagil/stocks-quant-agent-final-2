@@ -29,7 +29,7 @@ def test_production_data_bridge_uses_explicit_30m_alignment_without_relaxing_pri
     assert cfg["data"]["maximum_cross_provider_close_disagreement_bps"] == 50.0
     text = Path("src/stocks/production/data_refresh_v2_41_2.py").read_text()
     assert "align_ibkr_rth_to_eodhd_grid_v242" in text
-    assert "ibkr_raw = broker.historical_bars" in text
+    assert "fetch_historical_batch_v2431" in text
 
 
 def test_contextual_proposals_are_only_used_when_recent():

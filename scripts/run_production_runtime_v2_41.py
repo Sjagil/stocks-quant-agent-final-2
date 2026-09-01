@@ -26,6 +26,7 @@ from stocks.production.authority_v2_41 import (
 )
 from stocks.production.data_refresh_v2_41_2 import refresh_provider_fabric
 from stocks.production.ibkr_adapter_v2_41 import IBKRBrokerV241
+from stocks.production.ibkr_read_facade_v2_43_1 import IBKRReadFacadeV2431
 from stocks.production.launchd_v2_41 import LABEL, install_launchagent_v241, launchagent_path_v241, uninstall_launchagent_v241
 from stocks.production.preflight_v2_41 import build_preflight
 from stocks.production.proposal_adapter_v2_41 import eligible_buy_rows
@@ -56,7 +57,7 @@ def context(config: str | None = None):
 
 
 def preflight(cfg, store):
-    with IBKRBrokerV241(cfg, readonly=True) as broker:
+    with IBKRReadFacadeV2431(ROOT, cfg) as broker:
         snap = broker.snapshot()
         buys = eligible_buy_rows(ROOT, cfg)
         relevant = {str(x.get("symbol", "")).upper() for x in buys if x.get("symbol")}

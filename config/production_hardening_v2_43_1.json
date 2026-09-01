@@ -1,0 +1,22 @@
+{
+  "schema": "production_hardening_v2_43_1",
+  "base_branch": "feature/market-context-hard-chain-v2-43",
+  "target_branch": "feature/production-hardening-v2-43-1",
+  "ibkr_historical": {
+    "maximum_symbols_per_request": 2,
+    "chunk_timeout_seconds": 90,
+    "individual_retry_timeout_seconds": 55,
+    "retry_failed_symbols": true
+  },
+  "broker_snapshot": {
+    "integration": "stocks_ibkr_reference",
+    "timeout_seconds": 90,
+    "require_double_snapshot_stable": true
+  },
+  "safety": {
+    "paper_submission_enabled_by_installer": false,
+    "rl_direct_broker_control": false,
+    "ppo_weight": 0.0,
+    "sac_mode": "SHADOW_CONTEXT_ONLY"
+  }
+}

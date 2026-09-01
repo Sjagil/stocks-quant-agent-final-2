@@ -60,7 +60,7 @@ def _context_paper_ready(root: Path) -> bool:
         data = json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return False
-    return data.get("status") == "READY_FOR_PAPER" and bool(data.get("paper_entry_ready"))
+    return bool(data.get("system_paper_ready")) and data.get("status") in {"SYSTEM_READY_FOR_PAPER", "READY_FOR_PAPER"}
 
 
 def eligible_buy_rows(root: str | Path, cfg: dict[str, Any]) -> list[dict[str, Any]]:

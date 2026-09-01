@@ -377,7 +377,7 @@ def _macro_refresh_read_only(request: dict, artifact_dir: Path) -> dict:
     }
     output = artifact_dir / "stocks_reference_macro_refresh_v2_27.json"
     output.write_text(
-        json.dumps(artifact, indent=2, sort_keys=True, default=str) + "\\n",
+        json.dumps(artifact, indent=2, sort_keys=True, default=str) + "\n",
         encoding="utf-8",
     )
     state = "OK" if validation.get("status") == "GO" else "DEGRADED"
