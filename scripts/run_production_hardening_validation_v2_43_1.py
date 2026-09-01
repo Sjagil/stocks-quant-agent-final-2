@@ -27,6 +27,7 @@ def run(args: list[str]) -> dict:
 
 def main() -> int:
     checks: dict[str, dict] = {}
+    checks["production_screener"] = run(["scripts/run_production_screener_v2_44.py"])
     checks["finbert"] = run(["scripts/warm_finbert_v2_42.py"])
     checks["ibkr_reference_snapshot"] = run(["scripts/run_ibkr_reference_snapshot_v2_43_1.py"])
     checks["reference_macro"] = run(["scripts/run_reference_macro_v2_43_1.py"])
@@ -55,7 +56,7 @@ def main() -> int:
         else {"status": "MISSING", "system_paper_ready": False, "entry_eligible_now": False}
     )
     mandatory = [
-        "finbert", "ibkr_reference_snapshot", "strategy_hydration",
+        "production_screener", "finbert", "ibkr_reference_snapshot", "strategy_hydration",
         "market_context_snapshot", "agent_shadow", "mappo_dataset",
         "context_walk_forward", "context_readiness",
     ]

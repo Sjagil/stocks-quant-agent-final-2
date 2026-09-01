@@ -30,6 +30,7 @@ from stocks.production.ibkr_read_facade_v2_43_1 import IBKRReadFacadeV2431
 from stocks.production.launchd_v2_41 import LABEL, install_launchagent_v241, launchagent_path_v241, uninstall_launchagent_v241
 from stocks.production.preflight_v2_41 import build_preflight
 from stocks.production.proposal_adapter_v2_41 import eligible_buy_rows
+from stocks.production.screener_v2_44 import run_production_screener_v244
 from stocks.production.runtime_lock_v2_41 import exclusive_production_lock
 from stocks.production.runtime_v2_41 import run_production_cycle_v241
 from stocks.production.state_store_v2_41 import ProductionStoreV241
@@ -79,6 +80,7 @@ def main() -> int:
     sub.add_parser("status")
     sub.add_parser("preflight")
     sub.add_parser("refresh-data")
+    sub.add_parser("screener")
     cycle = sub.add_parser("cycle")
     cycle.add_argument("--force-data-refresh", action="store_true")
     cycle.add_argument("--force-decision-refresh", action="store_true")
@@ -132,6 +134,9 @@ def main() -> int:
             "current_session_provider_ibkr": cfg["data"].get("production_current_session_provider") == "IBKR",
             "finalized_history_isolated": bool(cfg["data"].get("finalized_history_root")),
             "all_symbol_freshness_required": cfg["data"].get("require_all_symbols_fresh") is True,
+            "production_screener_config": (ROOT / "config/production_screener_v2_44.json").is_file(),
+            "stocks_reference_repo": (ROOT / "references/Stocks/src/stocks").is_dir(),
+            "stocks_reference_python": (ROOT / ".venvs/stocks/bin/python").is_file(),
         }
         try:
             import ib_async  # noqa: F401
@@ -143,6 +148,7 @@ def main() -> int:
         return 0 if checks["ready"] else 2
 
     if args.cmd == "status":
+        screener_summary_path = ROOT / "artifacts/production_runtime_v2_44/screener/summary.json"
         payload = {
             "authority": authority_status(ROOT, cfg, store).to_dict(),
             "baseline_adopted": store.get("baseline_adopted", False),
@@ -151,6 +157,11 @@ def main() -> int:
             "managed_symbols": sorted(store.managed_symbols()),
             "recent_intents": store.recent_intents(),
             "recent_cycles": store.latest_cycles(),
+            "production_screener": (
+                json.loads(screener_summary_path.read_text(encoding="utf-8"))
+                if screener_summary_path.is_file()
+                else {"status": "MISSING", "fresh": False}
+            ),
         }
         print(json.dumps(payload, indent=2, default=str))
         return 0
@@ -159,6 +170,13 @@ def main() -> int:
         result = refresh_provider_fabric(ROOT, cfg)
         print(json.dumps(result, indent=2, default=str))
         return 0 if result.get("status") == "SUCCEEDED" else 2
+
+    if args.cmd == "screener":
+        frame, result, output = run_production_screener_v244(ROOT)
+        print(json.dumps(result.to_dict(), indent=2, default=str))
+        print("CANDIDATES", len(frame))
+        print("OUTPUT", output)
+        return 0 if result.status == "SUCCEEDED" else 2
 
     if args.cmd == "preflight":
         snap, report = preflight(cfg, store)

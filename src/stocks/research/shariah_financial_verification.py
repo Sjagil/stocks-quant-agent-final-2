@@ -698,6 +698,7 @@ def run_verification(
 
     audit = {
         "schema": "shariah_financial_verification_v2_8",
+        "as_of": decision_date.isoformat(),
         "symbols": int(len(frame)),
         "verified_trade_eligible": int(verified.sum()),
         "financial_pass_pending_attestation": int(

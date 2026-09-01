@@ -6,6 +6,8 @@ from typing import Any
 
 import pandas as pd
 
+from .screener_v2_44 import production_screener_allows_symbol_v244
+
 
 def _bool(value: Any) -> bool:
     if isinstance(value, bool):
@@ -85,6 +87,13 @@ def eligible_buy_rows(root: str | Path, cfg: dict[str, Any]) -> list[dict[str, A
             continue
         if e.get("require_no_proposal_blockers", True) and str(row.get("blockers", "") or "").strip():
             continue
+        if e.get("require_current_screener_candidate", True):
+            allowed, _ = production_screener_allows_symbol_v244(
+                root,
+                str(row.get("symbol") or ""),
+            )
+            if not allowed:
+                continue
         rows.append(row)
     rows.sort(
         key=lambda x: float(x.get("adjusted_conviction", x.get("conviction", 0)) or 0),

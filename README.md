@@ -2,6 +2,17 @@
 
 A stocks / ETFs / commodity-proxy active-swing **research platform** with canonical market data, isolated external-research engines and an execution-neutral `TradeIntent` boundary.
 
+## Production quickstart
+
+The production-hardening branch has one supported macOS bootstrap path. It installs the production dependencies, the isolated `Stocks` reference runtime, the EODHD production screener and the fail-closed IBKR PAPER control plane.
+
+```bash
+git switch feature/production-hardening-v2-43-1
+bash scripts/bootstrap_production_v2_44.sh
+```
+
+Then fill `.env` and follow `docs/PRODUCTION_QUICKSTART_V2_44.md`. The screener is mandatory for new entries but has no strategy or order authority.
+
 ## Authority is still non-negotiable
 
 None of the new integration workers can create an IBKR order. MoonDev trading agents are never invoked by the worker layer. VeighNa, Qlib, FinRL and Nautilus are research/challenger engines only.

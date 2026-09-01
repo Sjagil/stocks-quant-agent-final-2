@@ -5,6 +5,7 @@
     "cycle_seconds": 300,
     "data_refresh_seconds": 900,
     "decision_refresh_seconds": 300,
+    "screener_refresh_seconds": 21600,
     "broker_snapshot_timeout_seconds": 8,
     "lock_path": "artifacts/production_runtime_v2_41/runtime.lock",
     "database": "artifacts/production_runtime_v2_41/production.sqlite3",
@@ -94,7 +95,8 @@
     "require_no_proposal_blockers": true,
     "allow_rl_direct_broker_control": false,
     "minimum_rl_test_trades_for_future_live_use": 30,
-    "require_context_readiness": true
+    "require_context_readiness": true,
+    "require_current_screener_candidate": true
   },
   "authority": {
     "automatic_champion_promotion": false,

@@ -28,3 +28,7 @@ This round fixes the blockers observed after v2.43 without weakening any safety 
 ## PAPER rule
 
 The installer does not arm or enable order submission. Even when `system_paper_ready=true`, an order still requires a current genuine fresh strategy trigger, Shariah verification, context approval, risk approval, broker readiness, idempotency and the existing explicit submission authority.
+
+## v2.44 deployability completion
+
+The executable deployment path is `scripts/bootstrap_production_v2_44.sh`. It supplies the missing environment template, production dependency set and isolated `references/Stocks` runtime. The native EODHD screener now runs inside the decision refresh chain every six hours and blocks new entries when its artifact is missing, stale, invalid or does not contain the proposed symbol. The screener remains advisory and cannot assign strategies or submit orders.
