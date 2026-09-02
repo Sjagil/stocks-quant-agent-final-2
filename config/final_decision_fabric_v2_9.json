@@ -1,0 +1,39 @@
+{
+  "schema": "final_decision_fabric_v2_9",
+  "execution_authority": "NONE",
+  "broker_observation": {
+    "integration": "stocks_ibkr_reference",
+    "expected_base_currency": "EUR",
+    "execution_max_age_seconds": 120,
+    "require_stable_double_snapshot": true,
+    "require_unique_nonzero_recon_client_id": true,
+    "forbid_client_id_zero": true,
+    "allow_broker_writes": false,
+    "allow_market_data_requests": false,
+    "allow_historical_data_requests": false,
+    "allow_auto_bind_orders": false
+  },
+  "whole_share_sizing": {
+    "quantity_mode": "WHOLE_SHARES",
+    "fractional_shares_allowed": false,
+    "fixed_euro_order_cap_enabled": false,
+    "base_risk_fraction": 0.0100,
+    "strong_risk_fraction": 0.0125,
+    "strong_conviction_threshold": 0.85,
+    "hard_max_risk_fraction": 0.0150,
+    "maximum_portfolio_heat": 0.0600,
+    "maximum_positions": 5,
+    "maximum_single_weight": 0.35,
+    "cash_floor": 0.03,
+    "atr_period": 14,
+    "stop_atr_multiple": 2.0,
+    "minimum_stop_fraction": 0.02,
+    "minimum_quantity": 1
+  },
+  "sec": {
+    "require_declared_user_agent": true,
+    "require_contact_email_in_user_agent": true,
+    "ticker_map_cache": "data/reference/sec/company_tickers.json",
+    "minimum_request_interval_seconds": 0.12
+  }
+}

@@ -1,0 +1,49 @@
+schema: agent_feature_fabric_v2_14
+execution_authority: NONE
+broker_order_submission: false
+money_control: false
+
+historical_training:
+  source_class: CAUSAL_CLOSED_BAR_ONLY
+  current_context_may_enter_training: false
+  require_point_in_time_history_for_external_context: true
+  default_window:
+    DQN_TIMING: 32
+    SAC_SIZING: 32
+    RISK: 24
+
+replay_memory:
+  optimize_memory_usage: false
+  DQN:
+    buffer_size: 40000
+  SAC:
+    buffer_size: 50000
+
+context:
+  minimum_modifier: 0.85
+  maximum_modifier: 1.15
+  modality_caps:
+    news: 0.04
+    gex: 0.025
+    orderflow: 0.03
+    fundamental: 0.025
+    macro: 0.025
+    sec: 0.015
+  current_external_context_training_safe: false
+
+pit_store:
+  path: data/agent_features/pit/context_snapshots.parquet
+  append_forward_snapshots: true
+
+roles:
+  DQN_TIMING:
+    can_short: false
+  SAC_SIZING:
+    can_short: false
+  RISK:
+    can_open: false
+    can_increase: false
+  MULTIMODAL_CONTEXT:
+    may_create_entry: false
+    may_override_risk: false
+    direct_authority: false

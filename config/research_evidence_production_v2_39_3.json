@@ -1,0 +1,31 @@
+{
+  "schema": "research_evidence_production_v2_39_3",
+  "continuous_config": "config/continuous_quant_research_v2_39_2.json",
+  "runtime_subdir": "evidence_production_v2_39_3",
+  "execution_authority": "NONE",
+  "broker_submission_enabled": false,
+  "automatic_live_promotion": false,
+  "automatic_champion_promotion": false,
+  "minimum_effective_oos_observations": 60,
+  "minimum_raw_oos_trades": 60,
+  "factory_1h": {
+    "enabled": true,
+    "artifact_root": "artifacts/research_runtime/strategy_factory_1h",
+    "replay_purge_bars": 42,
+    "metric_abs_tolerance": 1e-6,
+    "metric_rel_tolerance": 1e-5,
+    "require_replay_metric_verification": true,
+    "require_selected_test_folds": true
+  },
+  "cost_stress": {
+    "multipliers": [1.0, 1.5, 2.0, 3.0],
+    "required_multiplier": 2.0,
+    "require_effective_sample_for_pass": true
+  },
+  "produce_due": {
+    "max_entities": 10,
+    "roles": ["CHALLENGER", "CANDIDATE"],
+    "skip_quarantined": true,
+    "require_foundation_first": true
+  }
+}

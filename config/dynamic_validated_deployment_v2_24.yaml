@@ -1,0 +1,24 @@
+schema: dynamic_validated_strategy_deployment_v2_24
+
+source:
+  final_roster: artifacts/research_runtime/final_strategy_roster/roster.csv
+  final_roster_audit: artifacts/research_runtime/final_strategy_roster/audit.json
+  research_candidate_registry: artifacts/research_runtime/research_candidate_registry/registry.csv
+  generated_adapter_audit: artifacts/research_runtime/generated_forward_adapter_audit_v2_23/audit.json
+
+deployment:
+  required_roster_status: BROADLY_VALIDATED_FINALIST
+  required_execution_contract: NEXT_OPEN_REPLAY
+  require_research_deployment_ready: true
+  require_supported_forward_adapter: true
+  accepted_cross_engine_statuses:
+    - CROSS_ENGINE_VALIDATED
+    - 15M_EXECUTION_VALIDATED
+  accepted_generalization_statuses:
+    - DYNAMIC_UNIVERSE_VALIDATED
+    - 15M_DYNAMIC_UNIVERSE_VALIDATED
+  require_frozen_parameter_payload: true
+  automatic_live_promotion: false
+  broker_calls: 0
+  order_calls: 0
+  execution_authority: NONE

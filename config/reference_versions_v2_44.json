@@ -1,0 +1,7 @@
+{
+  "schema": "production_reference_versions_v2_44",
+  "stocks_reference": {
+    "repository": "https://github.com/Sjagil/Stocks.git",
+    "commit": "e6f04da8e5afe53b74bf70390e59b06f6ceb624c"
+  }
+}

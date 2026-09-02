@@ -1,0 +1,82 @@
+schema: stocks_donor_integration_v2_17_1
+
+upstream:
+  repository: https://github.com/Sjagil/Stocks.git
+  local_path: references/Stocks
+  integration_mode: PINNED_SOURCE_DONOR
+  direct_package_import_into_main_process: false
+
+active_existing_integrations:
+  - integration: stocks_reference
+    worker: scripts/workers/stocks_reference_worker.py
+    donor_domains: [news_intelligence, screener, sec_overlay, orderflow]
+  - integration: stocks_context_reference
+    worker: scripts/workers/stocks_context_reference_worker.py
+    donor_domains: [discovery_context, market_context]
+  - integration: stocks_ibkr_reference
+    worker: scripts/workers/stocks_ibkr_reference_worker.py
+    donor_domains: [read_only_ibkr_snapshot, economic_account_state, double_snapshot_stability]
+
+approved_architecture_sources:
+  - path: src/stocks/portfolio/orchestrator.py
+    phase: v2.19_v2.22
+    reuse_mode: ADAPT_SEMANTICS_NOT_IMPORT
+    required_markers: [AUTONOMOUS_DRY_RUN, build_p0_execution_bridge, broker_snapshot, account_state, reconciliation]
+  - path: src/stocks/portfolio/execution_bridge.py
+    phase: v2.22_v2.23
+    reuse_mode: ADAPT_SEMANTICS_NOT_IMPORT
+    required_markers: [FRACTIONAL_DELTA_FORBIDDEN, canonical_submit_function, live_submit_authorized, broker_writes, direct_ibkr_calls]
+  - path: src/stocks/ibkr/reconciliation/account_state.py
+    phase: v2.21
+    reuse_mode: ISOLATED_READ_ONLY_FUNCTIONAL
+    required_markers: [NetLiquidation, AvailableFunds, spendable_eur, execution_sizing_capacity_eur, ACCOUNT_SNAPSHOT_HASH_UNVERIFIED, execution_authority]
+  - path: src/stocks/auto_paper/shariah_gate.py
+    phase: v2.18_v2.22
+    reuse_mode: FAIL_CLOSED_POLICY_REFERENCE
+    required_markers: [SHARIAH_DATA_INCOMPLETE, SHARIAH_STATUS_STALE, SHARIAH_MANUAL_REVIEW_REQUIRED, automatic_order_authority, NONE]
+
+portfolio_feature_sources:
+  - src/stocks/portfolio/attribution.py
+  - src/stocks/portfolio/coverage.py
+  - src/stocks/portfolio/dynamic_risk.py
+  - src/stocks/portfolio/etf_holdings.py
+  - src/stocks/portfolio/execution_feasibility.py
+  - src/stocks/portfolio/intelligence.py
+  - src/stocks/portfolio/learning_integration.py
+  - src/stocks/portfolio/manager.py
+  - src/stocks/portfolio/monitoring.py
+  - src/stocks/portfolio/opportunities.py
+  - src/stocks/portfolio/overlap.py
+  - src/stocks/portfolio/quant_authority.py
+  - src/stocks/portfolio/strategy_authority.py
+  - src/stocks/portfolio/targets.py
+
+quarantine:
+  - path: src/stocks/capital/canary.py
+    reason: FIXED_EUR_NOTIONAL_AND_ABSOLUTE_RISK_CAPS_FORBIDDEN
+    forbidden_for_direct_reuse: [hard_notional_cap_eur, maximum_risk_eur, maximum_order_eur]
+  - path: src/stocks/live/service.py
+    reason: DONOR_WRITER_MUST_NEVER_BECOME_SECOND_CANONICAL_WRITER
+    forbidden_for_direct_reuse: [live_submit]
+
+policy:
+  whole_shares_only: true
+  fractional_shares_allowed: false
+  fixed_euro_order_cap: false
+  size_from_real_account_state: true
+  one_share_is_minimum_tradeable_quantity: true
+  skip_if_one_share_violates_risk_cash_weight_or_heat: true
+  shariah_fail_closed: true
+  external_donor_broker_writes: false
+  canonical_broker_writer: stocks.live.service.live_submit_authorized
+  automatic_live_promotion: false
+  execution_authority: NONE
+
+roadmap_mapping:
+  v2.17: {purpose: cross_engine_strategy_validation, donor_role: provenance_and_safety_contract_only}
+  v2.18: {purpose: research_federation, donor_role: news_screener_sec_orderflow_and_research_patterns}
+  v2.19: {purpose: portfolio_federation, donor_role: orchestrator_dynamic_risk_targets_overlap_attribution_challenger}
+  v2.20: {purpose: rl_marl_shadow_fabric, donor_role: learning_integration_and_authority_separation_patterns}
+  v2.21: {purpose: ibkr_truth_reconciliation, donor_role: read_only_snapshot_account_state_reconciliation}
+  v2.22: {purpose: unified_whole_share_decision_engine, donor_role: portfolio_orchestrator_and_execution_bridge_patterns_without_euro_caps}
+  v2.23: {purpose: bounded_autonomous_canary, donor_role: authority_writer_integrity_patterns_only_single_main_writer}

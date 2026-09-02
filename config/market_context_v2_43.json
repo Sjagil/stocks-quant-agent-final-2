@@ -1,0 +1,138 @@
+{
+  "schema": "market_context_v2_43_1",
+  "artifact_root": "artifacts/production_runtime_v2_43",
+  "snapshot_max_age_minutes": 20,
+  "market_data": {
+    "calendar": "NYSE",
+    "target_bar_minutes": 60,
+    "bar_close_lag_seconds": 120,
+    "critical_symbols": [
+      "SPY",
+      "QQQ"
+    ],
+    "require_all_critical_fresh": true
+  },
+  "calendar": {
+    "enabled": true,
+    "provider": "EODHD",
+    "countries": [
+      "US"
+    ],
+    "lookback_days": 1,
+    "lookahead_days": 2,
+    "high_impact_pre_minutes": 30,
+    "high_impact_post_minutes": 30,
+    "medium_impact_pre_minutes": 60,
+    "high_impact_adjustment": -0.2,
+    "medium_impact_adjustment": -0.08,
+    "high_impact_keywords": [
+      "interest rate",
+      "federal reserve",
+      "fed ",
+      "fomc",
+      "cpi",
+      "consumer price",
+      "pce",
+      "nonfarm",
+      "non-farm",
+      "payroll",
+      "unemployment rate",
+      "gdp",
+      "gross domestic product",
+      "retail sales",
+      "ism manufacturing",
+      "ism services",
+      "powell",
+      "core inflation"
+    ],
+    "medium_impact_keywords": [
+      "jobless claims",
+      "employment",
+      "pmi",
+      "producer price",
+      "ppi",
+      "industrial production",
+      "consumer confidence",
+      "durable goods",
+      "housing starts",
+      "jolts",
+      "trade balance"
+    ],
+    "providers": [
+      "eodhd",
+      "finnhub"
+    ],
+    "cache_ttl_hours": 6.0
+  },
+  "news": {
+    "enabled": true,
+    "providers": [
+      "eodhd",
+      "yfinance",
+      "finnhub",
+      "alphavantage",
+      "marketaux",
+      "currents"
+    ],
+    "lookback_hours": 72,
+    "limit_per_symbol": 40,
+    "market_context_symbols": [
+      "SPY",
+      "QQQ"
+    ],
+    "minimum_story_evidence_score": 0.12,
+    "negative_tail_block_threshold": 0.7,
+    "event_risk_block_threshold": 0.7,
+    "maximum_positive_adjustment": 0.08,
+    "maximum_negative_adjustment": 0.25,
+    "critical_news_context_for_single_stocks": true,
+    "require_finbert_for_new_entries_when_news_present": true
+  },
+  "policy": {
+    "minimum_adjusted_conviction": 0.65,
+    "fail_closed_calendar": true,
+    "fail_closed_market_data": true,
+    "fail_closed_single_stock_news": true,
+    "context_can_create_entry": false,
+    "risk_reducing_actions_allowed_when_context_blocked": true,
+    "require_fresh_strategy_hydration": true,
+    "strategy_hydration_max_age_minutes": 180
+  },
+  "rl": {
+    "ppo_weight": 0.0,
+    "sac_mode": "SHADOW_CONTEXT_ONLY",
+    "sac_max_abs_adjustment": 0.05,
+    "minimum_sac_test_trades_for_context_influence": 30,
+    "rl_direct_broker_control": false
+  },
+  "walk_forward": {
+    "horizon_bars": 20,
+    "minimum_observations": 20,
+    "historical_replay_enabled": true,
+    "minimum_context_off_active": 5,
+    "maximum_samples": 160,
+    "sample_stride_bars": 6,
+    "historical_lookback_days": 180,
+    "minimum_context_on_active": 5
+  },
+  "non_single_stock_symbols": [
+    "SPY",
+    "QQQ",
+    "GLD",
+    "SLV",
+    "CPER"
+  ],
+  "reference_macro": {
+    "enabled": true,
+    "provider": "references/Stocks",
+    "cache_ttl_hours": 6.0,
+    "lookback_days": 450,
+    "hard_entry_gate": false
+  },
+  "broker_readiness": {
+    "provider": "references/Stocks",
+    "snapshot_max_age_minutes": 5,
+    "require_double_snapshot_stable": true,
+    "hard_entry_gate": true
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "schema": "production_screener_v2_44",
+  "enabled": true,
+  "provider": "EODHD",
+  "artifact_root": "artifacts/production_runtime_v2_44/screener",
+  "exchange": "us",
+  "request_timeout_seconds": 30,
+  "maximum_session_age": 2,
+  "maximum_shariah_verification_session_age": 30,
+  "maximum_candidates": 150,
+  "required_for_new_entries": true,
+  "lanes": {
+    "CORE": {
+      "limit": 150,
+      "sort": "market_capitalization.desc",
+      "filters": [
+        ["exchange", "=", "us"],
+        ["adjusted_close", ">=", 5],
+        ["market_capitalization", ">=", 10000000000],
+        ["avgvol_200d", ">=", 300000],
+        ["earnings_share", ">", 0]
+      ]
+    },
+    "GEM": {
+      "limit": 250,
+      "sort": "refund_5d_p.desc",
+      "filters": [
+        ["exchange", "=", "us"],
+        ["adjusted_close", ">=", 5],
+        ["market_capitalization", ">=", 150000000],
+        ["market_capitalization", "<=", 25000000000],
+        ["avgvol_200d", ">=", 300000],
+        ["earnings_share", ">", 0]
+      ]
+    },
+    "TACTICAL": {
+      "limit": 150,
+      "sort": "refund_1d_p.desc",
+      "filters": [
+        ["exchange", "=", "us"],
+        ["adjusted_close", ">=", 5],
+        ["market_capitalization", ">=", 150000000],
+        ["avgvol_1d", ">=", 1000000]
+      ]
+    }
+  },
+  "minimum_scores": {
+    "high_potential": 70.0,
+    "watchlist": 52.0,
+    "technical": 55.0,
+    "liquidity_dollar_volume": 1500000.0
+  },
+  "safety": {
+    "long_only": true,
+    "automatic_strategy_assignment": false,
+    "automatic_order_submission": false,
+    "execution_authority": "NONE"
+  }
+}

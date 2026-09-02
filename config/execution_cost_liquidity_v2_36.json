@@ -1,0 +1,20 @@
+{
+  "schema": "execution_cost_liquidity_v2_36",
+  "authority": "RESEARCH_SHADOW_ONLY",
+  "base_branch": "feature/potential-gem-screener-v2-35-1",
+  "output_branch": "feature/execution-cost-liquidity-v2-36",
+  "base_currency": "EUR",
+  "commission": {"minimum_per_order": 0.35, "variable_bps": 0.0},
+  "exchange_fees_bps": 0.0,
+  "slippage": {"base_bps": 0.5, "volatility_coefficient": 0.06, "participation_coefficient": 12.0},
+  "market_impact": {"square_root_coefficient": 0.35, "minimum_bps": 0.0, "maximum_bps": 250.0},
+  "liquidity": {"max_adv_fraction": 0.05, "max_participation_rate": 0.10, "minimum_adv_notional": 1000000, "minimum_data_quality": 0.70},
+  "limit_orders": {"spread_capture_fraction": 0.50, "minimum_fill_probability": 0.35, "queue_penalty": 0.10},
+  "edge_gate": {"minimum_net_edge_bps": 5.0, "minimum_edge_to_cost_ratio": 1.25, "round_trip_default": true},
+  "stress_multiples": [1.0, 1.5, 2.0, 3.0],
+  "research_compliance_gate_applied": false,
+  "broker_submission_enabled": false,
+  "automatic_live_promotion": false,
+  "order_calls": 0,
+  "execution_authority": "NONE"
+}

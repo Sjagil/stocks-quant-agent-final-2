@@ -1,0 +1,19 @@
+{
+  "schema": "strategy_generator_v2_32_config",
+  "authority": "RESEARCH_SHADOW_ONLY",
+  "base_branch": "feature/alpha-factory-feature-governance-v2-31",
+  "output_branch": "feature/strategy-generator-v3-v2-32",
+  "primary_timeframe": "1h",
+  "maximum_variants_per_family": 8,
+  "maximum_selected": 48,
+  "max_per_family": 3,
+  "max_similarity": 0.88,
+  "require_v2_31_promoted_features": true,
+  "research_compliance_gate_applied": false,
+  "generic_feature_panel_execution": true,
+  "validation_stages": ["FAST_DISCOVERY", "PARAMETER_SEARCH", "PURGED_WALK_FORWARD", "COST_STRESS", "CROSS_ENGINE_VALIDATION", "FORWARD_SHADOW"],
+  "broker_submission_enabled": false,
+  "automatic_live_promotion": false,
+  "order_calls": 0,
+  "execution_authority": "NONE"
+}

@@ -1,0 +1,7 @@
+gymnasium>=0.29
+stable-baselines3>=2.3
+sb3-contrib>=2.3
+pettingzoo>=1.24
+transformers>=4.40
+torch>=2.2
+tensorboard>=2.16

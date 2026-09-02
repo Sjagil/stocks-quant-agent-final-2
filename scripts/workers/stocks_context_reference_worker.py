@@ -1,13 +1,20 @@
 from __future__ import annotations
 
 import json
+import shutil
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
 from _common import add_repo_src, artifact_ref, base_health, repo_catalog, run_worker
 
-CAPABILITIES = ("health", "catalog", "discovery_context")
+CAPABILITIES = (
+    "health",
+    "catalog",
+    "discovery_context",
+    "market_context",
+    "macro_refresh_read_only",
+)
 
 RESEARCH_SOFT_BLOCKERS = frozenset(
     {
@@ -339,6 +346,91 @@ def _discovery_context(request: dict, artifact_dir: Path) -> dict:
     }
 
 
+
+
+def _macro_refresh_read_only(request: dict, artifact_dir: Path) -> dict:
+    repo = _repo(request)
+    add_repo_src(repo)
+    from stocks.macro.service import macro_collect, macro_score, macro_status, macro_validate
+
+    payload = dict(request.get("payload") or {})
+    start = payload.get("start")
+    end = payload.get("end")
+    collection = macro_collect(repo, start=start, end=end)
+    score = macro_score(
+        repo,
+        as_of=(f"{end}T23:59:59+00:00" if end else None),
+    )
+    validation = macro_validate(repo)
+    status = macro_status(repo)
+    artifact = {
+        "schema": "stocks_reference_macro_refresh_v2_27",
+        "collection": collection,
+        "score": score,
+        "validation": validation,
+        "status": status,
+        "macro_analysis_authority": "RESEARCH_ONLY",
+        "strategy_authority": "NONE",
+        "execution_authority": "NONE",
+        "broker_calls": 0,
+        "order_calls": 0,
+    }
+    output = artifact_dir / "stocks_reference_macro_refresh_v2_27.json"
+    output.write_text(
+        json.dumps(artifact, indent=2, sort_keys=True, default=str) + "\n",
+        encoding="utf-8",
+    )
+    state = "OK" if validation.get("status") == "GO" else "DEGRADED"
+    return {
+        "state": state,
+        "data": {
+            "collection_status": collection.get("status"),
+            "validation_status": validation.get("status"),
+            "macro_status": status.get("status"),
+            "latest_regime": status.get("latest_regime"),
+            "execution_authority": "NONE",
+            "broker_calls": 0,
+            "order_calls": 0,
+        },
+        "artifacts": [artifact_ref(output, media_type="application/json")],
+        "warnings": [] if state == "OK" else ["DONOR_MACRO_DATA_DEGRADED"],
+    }
+
+def _market_context(request: dict, artifact_dir: Path) -> dict:
+    repo = _repo(request)
+    add_repo_src(repo)
+    from stocks.market.context import MarketContextLayout, build_market_context
+
+    payload = dict(request.get("payload") or {})
+    symbols = payload.get("symbols") or ["SPY", "QQQ", "AAPL", "NVDA"]
+    result = build_market_context(
+        repo,
+        symbols=symbols,
+        fetch_options=bool(payload.get("fetch_options", True)),
+        max_expirations=int(payload.get("max_expirations", 4)),
+    )
+    layout = MarketContextLayout(repo)
+    artifacts = []
+    for source_path, media_type in (
+        (layout.gex_json, "application/json"),
+        (layout.orderflow_parquet, "application/x-parquet"),
+        (layout.status_json, "application/json"),
+        (layout.source_audit_json, "application/json"),
+    ):
+        if source_path.is_file():
+            copied = artifact_dir / source_path.name
+            shutil.copy2(source_path, copied)
+            artifacts.append(artifact_ref(copied, media_type=media_type))
+    return {
+        "state": "OK",
+        "data": {
+            "status": result.get("status", "GO") if isinstance(result, dict) else "GO",
+            "execution_authority": "NONE",
+            "broker_calls": 0,
+        },
+        "artifacts": artifacts,
+    }
+
 def handle(request: dict, artifact_dir: Path) -> dict:
     action = request.get("action")
     if action == "health":
@@ -347,6 +439,10 @@ def handle(request: dict, artifact_dir: Path) -> dict:
         return _catalog(request)
     if action == "discovery_context":
         return _discovery_context(request, artifact_dir)
+    if action == "market_context":
+        return _market_context(request, artifact_dir)
+    if action == "macro_refresh_read_only":
+        return _macro_refresh_read_only(request, artifact_dir)
     raise ValueError(f"unsupported action: {action}")
 
 

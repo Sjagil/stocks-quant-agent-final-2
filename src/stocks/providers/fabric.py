@@ -32,6 +32,11 @@ from stocks.providers.contracts import (
     SourceResult,
     SourceState,
 )
+from stocks.providers.federation_v2_27 import (
+    assert_payload_contains_no_secrets,
+    sanitize_payload,
+)
+from stocks.providers.openexchange import latest_fx
 
 
 class SourceFabric:
@@ -265,10 +270,16 @@ class SourceFabric:
                 self.project_root
             ),
         )
+        fx = self._safe(
+            "openexchangerates",
+            "fx",
+            lambda: latest_fx(),
+        )
 
         return {
             "results": [
-                rss.to_dict()
+                rss.to_dict(),
+                fx.to_dict(),
             ]
         }
 
@@ -360,9 +371,19 @@ class SourceFabric:
             )
         )
 
+        safe_payload, secret_audit = sanitize_payload(
+            payload
+        )
+        safe_payload[
+            "secret_redaction_audit"
+        ] = secret_audit
+        assert_payload_contains_no_secrets(
+            safe_payload
+        )
+
         artifact.write_text(
             json.dumps(
-                payload,
+                safe_payload,
                 indent=2,
                 sort_keys=True,
                 default=str,
@@ -371,10 +392,10 @@ class SourceFabric:
             encoding="utf-8",
         )
 
-        payload[
+        safe_payload[
             "artifact"
         ] = str(
             artifact
         )
 
-        return payload
+        return safe_payload

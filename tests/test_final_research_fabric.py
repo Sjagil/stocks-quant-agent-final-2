@@ -1,7 +1,10 @@
 
 import pandas as pd
 
-from stocks.research.final_strategy_roster import _components
+from stocks.research.final_strategy_roster import (
+    _components,
+    build_final_strategy_roster,
+)
 from stocks.research.shariah_research_precheck import business_precheck
 from stocks.research.validation_policy import promotion_from_evidence
 
@@ -67,3 +70,57 @@ def test_redundancy_components_cluster_flagged_pair():
     components = _components(["A", "B", "C"], pairs)
     assert {"A", "B"} in components
     assert {"C"} in components
+
+
+def test_redundancy_champion_uses_evidence_not_hypothesis_sort(tmp_path):
+    registry_root = (
+        tmp_path / "artifacts/research_runtime/research_candidate_registry"
+    )
+    redundancy_root = (
+        tmp_path / "artifacts/research_runtime/strategy_redundancy"
+    )
+    registry_root.mkdir(parents=True)
+    redundancy_root.mkdir(parents=True)
+    pd.DataFrame(
+        [
+            {
+                "hypothesis_id": "aaa-low-score",
+                "strategy": "low",
+                "family": "generated",
+                "promotion_stage": "FINALIST_CANDIDATE",
+                "generalization_status": "DYNAMIC_UNIVERSE_VALIDATED",
+                "robustness_score": 10.0,
+                "median_stress_test_expectancy_bps": 2.0,
+                "median_test_expectancy_bps": 5.0,
+                "queue_rank": 2,
+            },
+            {
+                "hypothesis_id": "zzz-high-score",
+                "strategy": "high",
+                "family": "generated",
+                "promotion_stage": "FINALIST_CANDIDATE",
+                "generalization_status": "DYNAMIC_UNIVERSE_VALIDATED",
+                "robustness_score": 80.0,
+                "median_stress_test_expectancy_bps": 20.0,
+                "median_test_expectancy_bps": 30.0,
+                "queue_rank": 1,
+            },
+        ]
+    ).to_csv(registry_root / "registry.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "left": "aaa-low-score",
+                "right": "zzz-high-score",
+                "redundancy_flag": True,
+            }
+        ]
+    ).to_csv(redundancy_root / "pairs.csv", index=False)
+
+    roster, audit = build_final_strategy_roster(tmp_path)
+    champion = roster.loc[roster["cluster_champion"].astype(bool)].iloc[0]
+    alternate = roster.loc[~roster["cluster_champion"].astype(bool)].iloc[0]
+    assert champion["hypothesis_id"] == "zzz-high-score"
+    assert champion["roster_status"] == "BROADLY_VALIDATED_FINALIST"
+    assert alternate["roster_status"] == "REDUNDANT_ALTERNATE"
+    assert audit["broadly_validated_finalists"] == 1
